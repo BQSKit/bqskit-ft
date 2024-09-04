@@ -22,13 +22,20 @@ class RoundToDiscreteZPass(BasePass):
     def __init__(self, synthesis_epsilon: float = 1e-8) -> None:
         self.synthesis_epsilon = synthesis_epsilon
 
+    def normalize_angle(self, angle: float) -> float:
+        return angle % (2 * pi)
+
     def check_angle(self, angle: float) -> Circuit | None:
-        value = int(round(4 * angle / pi)) % 8
-        rounded_angle = value * pi / 2 % (2 * pi)
-        residual = angle % (2 * pi) - rounded_angle
+        angle = self.normalize_angle(angle)
+        pi_over_4 = pi / 4
+        value = round(angle / pi_over_4)
+        rounded_angle = value * pi_over_4
+        residual = abs(angle - rounded_angle)
 
         if residual > self.synthesis_epsilon:
             return None
+
+        value %= 8
 
         if value == 0:
             gates = [IdentityGate()]
@@ -53,6 +60,7 @@ class RoundToDiscreteZPass(BasePass):
         return CircuitGate(circuit)
 
     async def run(self, circuit: Circuit, data: PassData) -> None:
+
         for cycle, op in circuit.operations_with_cycles(reverse=True):
             if not isinstance(op.gate, RZGate):
                 continue

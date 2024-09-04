@@ -6,11 +6,10 @@ from random import choice
 
 from bqskit.compiler import compile
 from bqskit.compiler.machine import MachineModel
+from bqskit.ft.cliffordt.ftgateset import FaultTolerantGateSet
 from bqskit.ir import Circuit
 from bqskit.ir import Gate
 from bqskit.ir.gates import U3Gate
-
-from bqskit.ft.cliffordt.ftgateset import FaultTolerantGateSet
 
 
 def simple_circuit(num_qudits: int, gate_set: list[Gate]) -> Circuit:
@@ -24,6 +23,7 @@ def simple_circuit(num_qudits: int, gate_set: list[Gate]) -> Circuit:
     circ.append_gate(gate, loc)
     circ.append_gate(gate_inv, loc)
     return circ
+
 
 class TestCompileDefaults:
 

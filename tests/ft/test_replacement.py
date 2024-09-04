@@ -4,21 +4,18 @@ from __future__ import annotations
 import numpy as np
 
 from bqskit.compiler import Compiler
+from bqskit.ft.replacement import construct_unitary_match_rule
+from bqskit.ft.replacement import ReplacementRule
 from bqskit.ir import Circuit
 from bqskit.ir import Operation
+from bqskit.ir.gates import CNOTGate
+from bqskit.ir.gates import U3Gate
 from bqskit.ir.gates import XGate
 from bqskit.ir.gates import ZGate
-from bqskit.ir.gates import U3Gate
-from bqskit.ir.gates import CNOTGate
-
 from bqskit.passes import ForEachBlockPass
 from bqskit.passes import GroupSingleQuditGatePass
 from bqskit.passes import UnfoldPass
-
 from bqskit.qis.unitary import UnitaryMatrix
-
-from bqskit.ft.replacement import ReplacementRule
-from bqskit.ft.replacement import construct_unitary_match_rule
 
 
 class TestReplacementRules:
@@ -31,7 +28,7 @@ class TestReplacementRules:
         i_match = construct_unitary_match_rule(UnitaryMatrix(i_u))
         assert x_match(op)
         assert not i_match(op)
-    
+
     def test_replace_single_qubit(self) -> None:
         x_match = construct_unitary_match_rule(XGate().get_unitary())
         z_match = construct_unitary_match_rule(ZGate().get_unitary())

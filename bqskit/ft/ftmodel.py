@@ -1,8 +1,9 @@
 """This module implements a generic FaultTolerantModel class."""
+from __future__ import annotations
+
 from typing import Sequence
 
 from bqskit.compiler.machine import MachineModel
-
 from bqskit.ir.gate import Gate
 
 
@@ -26,9 +27,9 @@ class FaultTolerantModel(MachineModel):
 
             non_clifford_gates (Sequence[Gate]): A list of non-Clifford
                 gates to allow in the model.
-            
+
             radixes (Sequence[int]): The radixes of the qudits. If empty,
                 qudits are assumed to be qubits. (Default: [])
         """
-        gate_set = clifford_gates + non_clifford_gates
+        gate_set = list(clifford_gates) + list(non_clifford_gates)
         super().__init__(num_qudits, gate_set=gate_set, radixes=radixes)

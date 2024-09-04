@@ -1,6 +1,7 @@
-from typing import Callable
+from __future__ import annotations
 
 from functools import partial
+from typing import Callable
 
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.passdata import PassData
@@ -53,12 +54,12 @@ class ReplacementRule(BasePass):
             num_qudits = replacement.num_qudits
             self.replacement = Circuit(num_qudits, replacement.radixes)
             self.replacement.append_gate(
-                replacement, [_ for _ in range(num_qudits)]
+                replacement, [_ for _ in range(num_qudits)],
             )
             self.replacement.unfold_all()
         else:
             self.replacement = replacement
-    
+
     async def run(self, circuit: Circuit, data: PassData) -> None:
         if circuit.num_qudits != self.replacement.num_qudits:
             return

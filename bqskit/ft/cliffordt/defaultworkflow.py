@@ -102,7 +102,7 @@ def build_cliffordt_workflow(
         # Finalizing
         LogErrorPass(),
     ]
-    return passes  # type: ignore
+    return passes
 
 
 def build_search_synthesis_workflow(

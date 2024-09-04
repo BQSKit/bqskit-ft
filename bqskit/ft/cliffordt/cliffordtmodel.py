@@ -1,22 +1,19 @@
 """This module implements a generic FaultTolerantModel class."""
+from __future__ import annotations
+
 from typing import Sequence
 
 from bqskit.compiler.registry import register_workflow
-
+from bqskit.ft.cliffordt.cliffordtgates import clifford_gates
+from bqskit.ft.cliffordt.defaultworkflow import build_circuit_workflow
+from bqskit.ft.cliffordt.defaultworkflow import build_statemap_workflow
+from bqskit.ft.cliffordt.defaultworkflow import build_stateprep_workflow
+from bqskit.ft.cliffordt.defaultworkflow import build_unitary_workflow
+from bqskit.ft.ftmodel import FaultTolerantModel
 from bqskit.ir.gate import Gate
 from bqskit.ir.gates.constant.t import TGate
 from bqskit.ir.gates.constant.tdg import TdgGate
 from bqskit.ir.gates.parameterized.rz import RZGate
-
-
-from bqskit.ft.cliffordt.cliffordtgates import clifford_gates
-from bqskit.ft.ftmodel import FaultTolerantModel
-
-from bqskit.ft.cliffordt.defaultworkflow import build_circuit_workflow
-from bqskit.ft.cliffordt.defaultworkflow import build_unitary_workflow
-from bqskit.ft.cliffordt.defaultworkflow import build_statemap_workflow
-from bqskit.ft.cliffordt.defaultworkflow import build_stateprep_workflow
-
 
 
 class CliffordTModel(FaultTolerantModel):
@@ -44,11 +41,11 @@ class CliffordTModel(FaultTolerantModel):
                 gates to allow in the model. If RZGates are not desired,
                 RZtoCliffordTSynthesis should be used.
                 (Default: [TGate(), TdgGate(), RZGate()])
-            
+
             radixes (Sequence[int]): The radixes of the qudits. If empty,
                 qudits are assumed to be qubits. Currently only qubits
                 are supported. (Default: [])
-        
+
         TODO:
             - Add support for radices >2
         """

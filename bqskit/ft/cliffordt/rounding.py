@@ -7,15 +7,14 @@ from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.passdata import PassData
 from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates.circuitgate import CircuitGate
-from bqskit.ir.operation import Operation
-
-from bqskit.ir.gates.parameterized.rz import RZGate
-from bqskit.ir.gates.constant.sdg import SdgGate
-from bqskit.ir.gates.constant.s import SGate
-from bqskit.ir.gates.constant.tdg import TdgGate
-from bqskit.ir.gates.constant.t import TGate
-from bqskit.ir.gates.constant.z import ZGate
 from bqskit.ir.gates.constant.identity import IdentityGate
+from bqskit.ir.gates.constant.s import SGate
+from bqskit.ir.gates.constant.sdg import SdgGate
+from bqskit.ir.gates.constant.t import TGate
+from bqskit.ir.gates.constant.tdg import TdgGate
+from bqskit.ir.gates.constant.z import ZGate
+from bqskit.ir.gates.parameterized.rz import RZGate
+from bqskit.ir.operation import Operation
 
 
 class RoundToDiscreteZPass(BasePass):

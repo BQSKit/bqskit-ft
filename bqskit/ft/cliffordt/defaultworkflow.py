@@ -62,7 +62,6 @@ def clifford_replace() -> BasePass:
         collection_filter=single_qudit_filter,
     )
 
-
 def build_cliffordt_workflow(
     optimization_level: int,
     synthesis_epsilon: float = 1e-8,
@@ -98,6 +97,11 @@ def build_cliffordt_workflow(
         RoundToDiscreteZPass(synthesis_epsilon),
         QuickPartitioner(2),
         ForEachBlockPass([ScanningGateRemovalPass()]),
+        UnfoldPass(),
+        GroupSingleQuditGatePass(),
+        clifford_replace(),
+        UnfoldPass(),
+        RoundToDiscreteZPass(synthesis_epsilon),
         UnfoldPass(),
         # Finalizing
         LogErrorPass(),

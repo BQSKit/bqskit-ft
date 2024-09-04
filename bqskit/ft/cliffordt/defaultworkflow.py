@@ -72,7 +72,7 @@ def build_cliffordt_workflow(
     circuit_target: bool = False,
     seed: int | None = None,
 ) -> list[BasePass]:
-    """Build Optimization Level 1 workflow for circuit compilation."""
+    """Build a workflow for Clifford+T compilation."""
     passes = [SetRandomSeedPass(seed)] if seed is not None else []
     if circuit_target:
         passes += [UnfoldPass()]
@@ -110,7 +110,7 @@ def build_search_synthesis_workflow(
     synthesis_epsilon: float = 1e-8,
 ) -> list[BasePass]:
     """
-    Build standard search-based synthesis pass for block-level compilation.
+    Build standard -based synthesis pass for block-level compilation.
 
     Args:
         optimization_level (int): The optimization level. See :func:`compile`
@@ -121,7 +121,7 @@ def build_search_synthesis_workflow(
             Set to 0 for exact synthesis. (Default: 1e-8)
 
     Returns:
-        BasePass: The synthesis pass.
+        (list[BasePass]): Synthesis passes.
 
     Raises:
         ValueError: If the optimization level is not 1, 2, 3, or 4.

@@ -11,6 +11,6 @@ setup(
     author_email='mtweiden@berkeley.edu',
     version='0.1.0',
     packages=find_namespace_packages(exclude=['tests']),
-    install_requires=['bqskit', 'numpy', 'scipy'],
+    install_requires=['bqskit', 'numpy', 'scipy', 'pygridsynth'],
     python_requires='>=3.8, <4.0',
 )

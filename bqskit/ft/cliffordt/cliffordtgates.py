@@ -31,3 +31,5 @@ clifford_gates = [
 t_gates = [TGate(), TdgGate()]
 
 rz_gates = [RZGate()]
+
+clifford_t_gates = clifford_gates + t_gates

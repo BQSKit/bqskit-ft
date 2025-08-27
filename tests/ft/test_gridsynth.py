@@ -6,12 +6,18 @@ from math import pi
 from random import random
 
 from bqskit.compiler import Compiler
-from bqskit.compiler.passdata import PassData
+from bqskit.passes import ForEachBlockPass
+from bqskit.passes import UnfoldPass
 from bqskit.ir import Circuit
 from bqskit.ir.gates import RZGate
+from bqskit.ir.gates import U3Gate
+from bqskit.ir.gates import CNOTGate
+from bqskit.ft.rules.isolate_rz import IsolateRZGatePass
 
 from bqskit.ft.cliffordt.cliffordtgates import clifford_t_gates
 from bqskit.ft.ftpasses.gridsynth import GridSynthPass
+
+from build.lib.bqskit.ft.ftpasses import gridsynth
 
 
 class TestGridSynthPass:
@@ -38,3 +44,29 @@ class TestGridSynthPass:
             new_utry = new_circuit.get_unitary()
 
             assert old_utry.get_distance_from(new_utry) < 1e-8
+    
+    def test_gridsynth_in_circuit(self) -> None:
+        circuit = Circuit(2)
+        theta = random() * 2 * pi
+        circuit.append_gate(CNOTGate(), [0, 1])
+        circuit.append_gate(RZGate(), [0], [theta])
+        circuit.append_gate(RZGate(), [1], [theta])
+
+        old_circuit = circuit.copy()
+
+        passes = [
+            IsolateRZGatePass(),
+            ForEachBlockPass([GridSynthPass(precision=20)]),
+            UnfoldPass(),
+        ]
+    
+        with Compiler() as compiler:
+            new_circuit = compiler.compile(circuit, passes)
+
+        for op in new_circuit:
+            assert op.gate in clifford_t_gates or op.gate == U3Gate()
+
+        old_utry = old_circuit.get_unitary()
+        new_utry = new_circuit.get_unitary()
+
+        assert old_utry.get_distance_from(new_utry) < 1e-8

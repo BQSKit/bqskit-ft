@@ -13,9 +13,6 @@ from bqskit.ft.cliffordrz.defaultworkflow import build_stateprep_workflow
 from bqskit.ft.cliffordrz.defaultworkflow import build_unitary_workflow
 from bqskit.ft.ftmodel import FaultTolerantModel
 from bqskit.ir.gate import Gate
-from bqskit.ir.gates.constant.t import TGate
-from bqskit.ir.gates.constant.tdg import TdgGate
-from bqskit.ir.gates.parameterized.rz import RZGate
 
 
 class CliffordRZModel(FaultTolerantModel):

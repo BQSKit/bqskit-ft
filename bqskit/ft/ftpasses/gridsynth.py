@@ -1,18 +1,17 @@
 """Apply the gridsynth algorithm to an RZ gate."""
 from __future__ import annotations
 
-from bqskit.compiler.basepass import BasePass
-from bqskit.compiler.passdata import PassData
-from bqskit.ir.gates.constant.h import HGate
-from bqskit.ir.gates.constant.x import XGate
-from bqskit.ir.gates.constant.s import SGate
-from bqskit.ir.gates.constant.t import TGate
-from bqskit.ir.gates.parameterized.rz import RZGate
-from bqskit.ir.circuit import Circuit
-
+import mpmath
 from pygridsynth.gridsynth import gridsynth_gates
 
-import mpmath
+from bqskit.compiler.basepass import BasePass
+from bqskit.compiler.passdata import PassData
+from bqskit.ir.circuit import Circuit
+from bqskit.ir.gates.constant.h import HGate
+from bqskit.ir.gates.constant.s import SGate
+from bqskit.ir.gates.constant.t import TGate
+from bqskit.ir.gates.constant.x import XGate
+from bqskit.ir.gates.parameterized.rz import RZGate
 mpmath.mp.dps = 128
 
 
@@ -22,13 +21,13 @@ class GridSynthPass(BasePass):
         precision: int = 10,
     ) -> None:
         self.precision = mpmath.mpmathify(f'1e-{precision}')
-    
+
     async def run(self, circuit: Circuit, data: PassData) -> None:
         if circuit.num_qudits != 1:
             m = 'GridSynthPass only works on single qubit inputs. '
             m = f'Got an input with {circuit.num_qudits} qudits.'
             raise ValueError(m)
-        
+
         if circuit.gate_counts.get(RZGate(), 0) != 1:
             m = 'The input must be a single RZ gate. '
             m += f'Got an input with {circuit.gate_counts}.'

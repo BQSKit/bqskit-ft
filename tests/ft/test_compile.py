@@ -2,17 +2,15 @@
 from __future__ import annotations
 
 from itertools import combinations
-
 from math import pi
-
 from random import choice
 from random import random
 
 from bqskit.compiler.compile import compile
-from bqskit.ft.cliffordrz.cliffordrzmodel import CliffordRZModel
-from bqskit.ft.cliffordt.cliffordtmodel import CliffordTModel
 from bqskit.ft.cliffordrz.cliffordrzgates import clifford_rz_gates
+from bqskit.ft.cliffordrz.cliffordrzmodel import CliffordRZModel
 from bqskit.ft.cliffordt.cliffordtgates import clifford_t_gates
+from bqskit.ft.cliffordt.cliffordtmodel import CliffordTModel
 from bqskit.ir import Circuit
 from bqskit.ir import Gate
 from bqskit.ir.gates import U3Gate

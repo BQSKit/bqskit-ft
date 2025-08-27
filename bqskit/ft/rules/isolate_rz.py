@@ -25,7 +25,6 @@ class IsolateRZGatePass(BasePass):
         for q in range(circuit.num_qudits):
 
             single_qubit_regions = []
-            region_start = None
 
             for c in range(circuit.num_cycles):
                 if circuit.is_point_idle((c, q)):

@@ -2,20 +2,18 @@
 from __future__ import annotations
 
 from math import pi
-
 from random import random
 
 from bqskit.compiler import Compiler
-from bqskit.passes import ForEachBlockPass
-from bqskit.passes import UnfoldPass
-from bqskit.ir import Circuit
-from bqskit.ir.gates import RZGate
-from bqskit.ir.gates import U3Gate
-from bqskit.ir.gates import CNOTGate
-from bqskit.ft.rules.isolate_rz import IsolateRZGatePass
-
 from bqskit.ft.cliffordt.cliffordtgates import clifford_t_gates
 from bqskit.ft.ftpasses.gridsynth import GridSynthPass
+from bqskit.ft.rules.isolate_rz import IsolateRZGatePass
+from bqskit.ir import Circuit
+from bqskit.ir.gates import CNOTGate
+from bqskit.ir.gates import RZGate
+from bqskit.ir.gates import U3Gate
+from bqskit.passes import ForEachBlockPass
+from bqskit.passes import UnfoldPass
 
 
 class TestGridSynthPass:
@@ -42,7 +40,7 @@ class TestGridSynthPass:
             new_utry = new_circuit.get_unitary()
 
             assert old_utry.get_distance_from(new_utry) < 1e-8
-    
+
     def test_gridsynth_in_circuit(self) -> None:
         circuit = Circuit(2)
         theta0 = random() * 2 * pi
@@ -58,7 +56,7 @@ class TestGridSynthPass:
             ForEachBlockPass([GridSynthPass(precision=20)]),
             UnfoldPass(),
         ]
-    
+
         with Compiler() as compiler:
             new_circuit = compiler.compile(circuit, passes)
 

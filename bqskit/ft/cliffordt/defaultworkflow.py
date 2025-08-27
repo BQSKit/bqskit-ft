@@ -5,11 +5,11 @@ from math import log10
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.compile import build_multi_qudit_retarget_workflow
 from bqskit.compiler.workflow import Workflow
-from bqskit.ft.ftpasses.rounding import RoundToDiscreteZPass
 from bqskit.ft.ftpasses.gridsynth import GridSynthPass
+from bqskit.ft.ftpasses.rounding import RoundToDiscreteZPass
+from bqskit.ft.rules.isolate_rz import IsolateRZGatePass
 from bqskit.ft.rules.replacement import construct_unitary_match_rule
 from bqskit.ft.rules.replacement import ReplacementRule
-from bqskit.ft.rules.isolate_rz import IsolateRZGatePass
 from bqskit.ir.gates.constant.h import HGate
 from bqskit.ir.gates.constant.identity import IdentityGate
 from bqskit.ir.gates.constant.s import SGate
@@ -79,6 +79,7 @@ def clifford_replace() -> BasePass:
         collection_filter=single_qudit_filter,
     )
 
+
 def build_cliffordt_workflow(
     optimization_level: int,
     synthesis_epsilon: float = 1e-8,
@@ -107,7 +108,7 @@ def build_cliffordt_workflow(
         passes += build_search_synthesis_workflow(
             optimization_level, synthesis_epsilon,
         )
-    
+
     zxzxz = ForEachBlockPass(
         [ZXZXZDecomposition()], collection_filter=single_qudit_filter,
     )
@@ -132,7 +133,7 @@ def build_cliffordt_workflow(
     if decompose_rz:
         precision = int(log10(1 / synthesis_epsilon)) + 2
         passes += rz_decomposition_passes(precision)
-    
+
     # Finalizing
     passes += [LogErrorPass()]
     return passes  # type: ignore

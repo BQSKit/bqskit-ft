@@ -12,3 +12,4 @@ build
 docs/source/autogen
 __pycache__
 docs/_build
+.pre-commit*

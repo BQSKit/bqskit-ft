@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bqskit-ft"
+version = "0.2.0"
+description = "BQSKit extension for compiling to Fault-Tolerant gate sets."
+readme = "README.md"
+license = {text = "BSD-3-Clause"}
+authors = [{name = "Mathias Weiden", email = "mtweiden@berkeley.edu"}]
+requires-python = ">=3.8"
+keywords = ["quantum computing", "compilation", "fault-tolerant", "clifford+t"]
+dependencies = [
+    "bqskit",
+    "numpy",
+    "scipy",
+    "pygridsynth"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+
+[project.urls]
+Homepage = "https://github.com/BQSKit/bqskit-ft"
+Repository = "https://github.com/BQSKit/bqskit-ft"
+Issues = "https://github.com/BQSKit/bqskit-ft/issues"
+Documentation = "https://github.com/BQSKit/bqskit-ft/blob/main/README.md"
+
+[tool.mypy]
+python_version = "3.8"
+explicit_package_bases = true
+namespace_packages = true
+mypy_path = "."
+ignore_missing_imports = true
+
+# For extension packages, we often need to ignore missing imports
+# since the dependencies (like bqskit) may not be available in the mypy environment
+
+[[tool.mypy.overrides]]
+module = [
+    "bqskit.*",
+    "setuptools.*",
+    "mpmath.*",
+    "pygridsynth.*",
+    "numpy.*",
+    "scipy.*"
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "bqskit.ft.*"
+ignore_missing_imports = false

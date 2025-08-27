@@ -79,17 +79,17 @@ def clifford_replace() -> BasePass:
         collection_filter=single_qudit_filter,
     )
 
-def build_cliffordt_workflow(
+def build_cliffordrz_workflow(
     optimization_level: int,
     synthesis_epsilon: float = 1e-8,
     max_synthesis_size: int = 3,
     error_threshold: float | None = None,
     error_sim_size: int = 8,
     circuit_target: bool = False,
-    decompose_rz: bool = True,
+    decompose_rz: bool = False,
     seed: int | None = None,
 ) -> list[BasePass]:
-    """Build a workflow for Clifford+T compilation."""
+    """Build a workflow for Clifford+RZ compilation."""
     passes = [SetRandomSeedPass(seed)] if seed is not None else []
     if circuit_target:
         passes += [UnfoldPass()]
@@ -198,11 +198,11 @@ def build_circuit_workflow(
     max_synthesis_size: int = 3,
     error_threshold: float | None = None,
     error_sim_size: int = 8,
-    decompose_rz: bool = True,
+    decompose_rz: bool = False,
     seed: int | None = None,
 ) -> Workflow:
     """Build standard workflow for circuit compilation."""
-    workflow = build_cliffordt_workflow(
+    workflow = build_cliffordrz_workflow(
         optimization_level,
         synthesis_epsilon,
         max_synthesis_size,
@@ -213,7 +213,7 @@ def build_circuit_workflow(
         seed=seed,
     )
     return Workflow(
-        workflow, name='Off-the-Shelf Clifford+T Circuit Compilation',
+        workflow, name='Off-the-Shelf Clifford+RZ Circuit Compilation',
     )
 
 
@@ -224,10 +224,10 @@ def build_unitary_workflow(
     error_threshold: float | None = None,
     error_sim_size: int = 8,
     seed: int | None = None,
-    decompose_rz: bool = True,
+    decompose_rz: bool = False,
 ) -> Workflow:
     """Build standard workflow for circuit compilation."""
-    workflow = build_cliffordt_workflow(
+    workflow = build_cliffordrz_workflow(
         optimization_level=optimization_level,
         synthesis_epsilon=synthesis_epsilon,
         max_synthesis_size=max_synthesis_size,
@@ -238,7 +238,7 @@ def build_unitary_workflow(
         seed=seed,
     )
     return Workflow(
-        workflow, name='Off-the-Shelf Clifford+T Unitary Compilation',
+        workflow, name='Off-the-Shelf Clifford+RZ Unitary Compilation',
     )
 
 
@@ -248,11 +248,11 @@ def build_statemap_workflow(
     max_synthesis_size: int = 3,
     error_threshold: float | None = None,
     error_sim_size: int = 8,
-    decompose_rz: bool = True,
+    decompose_rz: bool = False,
     seed: int | None = None,
 ) -> Workflow:
     """Build standard workflow for circuit compilation."""
-    workflow = build_cliffordt_workflow(
+    workflow = build_cliffordrz_workflow(
         optimization_level,
         synthesis_epsilon,
         max_synthesis_size,
@@ -263,7 +263,7 @@ def build_statemap_workflow(
         seed=seed,
     )
     return Workflow(
-        workflow, name='Off-the-Shelf Clifford+T StateSystem Compilation',
+        workflow, name='Off-the-Shelf Clifford+RZ StateSystem Compilation',
     )
 
 
@@ -273,11 +273,11 @@ def build_stateprep_workflow(
     max_synthesis_size: int = 3,
     error_threshold: float | None = None,
     error_sim_size: int = 8,
-    decompose_rz: bool = True,
+    decompose_rz: bool = False,
     seed: int | None = None,
 ) -> Workflow:
     """Build standard workflow for circuit compilation."""
-    workflow = build_cliffordt_workflow(
+    workflow = build_cliffordrz_workflow(
         optimization_level,
         synthesis_epsilon,
         max_synthesis_size,
@@ -288,5 +288,5 @@ def build_stateprep_workflow(
         seed=seed,
     )
     return Workflow(
-        workflow, name='Off-the-Shelf Clifford+T StateVector Compilation',
+        workflow, name='Off-the-Shelf Clifford+RZ StateVector Compilation',
     )

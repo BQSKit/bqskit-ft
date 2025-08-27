@@ -4,8 +4,8 @@ from __future__ import annotations
 import numpy as np
 
 from bqskit.compiler import Compiler
-from bqskit.ft.replacement import construct_unitary_match_rule
-from bqskit.ft.replacement import ReplacementRule
+from bqskit.ft.rules.replacement import construct_unitary_match_rule
+from bqskit.ft.rules.replacement import ReplacementRule
 from bqskit.ir import Circuit
 from bqskit.ir import Operation
 from bqskit.ir.gates import CNOTGate
@@ -32,8 +32,8 @@ class TestReplacementRules:
     def test_replace_single_qubit(self) -> None:
         x_match = construct_unitary_match_rule(XGate().get_unitary())
         z_match = construct_unitary_match_rule(ZGate().get_unitary())
-        x_rule = ReplacementRule(x_match, XGate())
-        z_rule = ReplacementRule(z_match, ZGate())
+        x_rule = ReplacementRule(x_match, XGate())  # type: ignore
+        z_rule = ReplacementRule(z_match, ZGate())  # type: ignore
         circuit = Circuit(2)
         circuit.append_gate(U3Gate(), (0), [np.pi, 0, np.pi])
         circuit.append_gate(U3Gate(), (1), [0, np.pi, 0])

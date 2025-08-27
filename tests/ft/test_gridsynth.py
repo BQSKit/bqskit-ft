@@ -17,8 +17,6 @@ from bqskit.ft.rules.isolate_rz import IsolateRZGatePass
 from bqskit.ft.cliffordt.cliffordtgates import clifford_t_gates
 from bqskit.ft.ftpasses.gridsynth import GridSynthPass
 
-from build.lib.bqskit.ft.ftpasses import gridsynth
-
 
 class TestGridSynthPass:
 
@@ -47,10 +45,11 @@ class TestGridSynthPass:
     
     def test_gridsynth_in_circuit(self) -> None:
         circuit = Circuit(2)
-        theta = random() * 2 * pi
+        theta0 = random() * 2 * pi
+        theta1 = random() * 2 * pi
         circuit.append_gate(CNOTGate(), [0, 1])
-        circuit.append_gate(RZGate(), [0], [theta])
-        circuit.append_gate(RZGate(), [1], [theta])
+        circuit.append_gate(RZGate(), [0], [theta0])
+        circuit.append_gate(RZGate(), [1], [theta1])
 
         old_circuit = circuit.copy()
 

@@ -107,6 +107,10 @@ def build_cliffordt_workflow(
         passes += build_search_synthesis_workflow(
             optimization_level, synthesis_epsilon,
         )
+    
+    zxzxz = ForEachBlockPass(
+        [ZXZXZDecomposition()], collection_filter=single_qudit_filter,
+    )
 
     passes += [
         GroupSingleQuditGatePass(),
@@ -117,6 +121,7 @@ def build_cliffordt_workflow(
         ForEachBlockPass([ScanningGateRemovalPass()]),
         UnfoldPass(),
         GroupSingleQuditGatePass(),
+        zxzxz,
         clifford_replace(),
         UnfoldPass(),
         RoundToDiscreteZPass(synthesis_epsilon),

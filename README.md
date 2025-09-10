@@ -28,6 +28,10 @@ BQSKit-FT extends the Berkeley Quantum Synthesis Toolkit ([BQSKit](https://githu
 - Optional RZ gate decomposition into Clifford+T
 
 ## Installation
+BQSKit-FT can be installed from PyPI using
+```bash
+pip install bqskit-ft
+```
 
 ### Dependencies
 ```bash

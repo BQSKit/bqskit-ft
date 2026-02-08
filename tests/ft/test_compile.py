@@ -160,3 +160,14 @@ class TestCompileDefaults:
         result = compile(target, machine)
         num_rz_after = result.gate_counts[RZGate()]
         assert num_rz_after <= num_rz_before
+
+    def test_import_passes_conversion(self) -> None:
+        from bqskit.ft.cliffordrz import build_cliffordrz_workflow
+        passes = build_cliffordrz_workflow()
+        num_qudits = 2
+        circuit = Circuit(num_qudits)
+        circuit.append_gate(RXGate(), 0, [pi / 3])
+        circuit.append_gate(CNOTGate(), [0, 1])
+        with Compiler() as compiler:
+            result = compiler.compile(circuit, passes)
+        assert all([gate in clifford_rz_gates for gate in result.gate_set])

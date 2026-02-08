@@ -9,36 +9,14 @@ A BQSKit extension package for compiling quantum circuits to fault-tolerant gate
 
 BQSKit-FT extends the Berkeley Quantum Synthesis Toolkit ([BQSKit](https://github.com/BQSKit/bqskit)) with specialized compilation workflows and machine models for fault-tolerant quantum computing. This package provides tools for compiling arbitrary quantum circuits into fault-tolerant gate sets such as Clifford+T and Clifford+RZ.
 
-## Key Features
-
-### Machine Models
-- **CliffordTModel**: Fault-tolerant machine model with Clifford+T gate set
-- **CliffordRZModel**: Fault-tolerant machine model with Clifford+RZ gate set
-- **FaultTolerantModel**: Base class for custom fault-tolerant machine models
-
-### Synthesis Passes
-- **GridSynthPass**: High-precision RZ gate synthesis using the gridsynth algorithm
-- **RoundToDiscreteZPass**: Rounds RZ gates to discrete Clifford+T equivalents
-- **IsolateRZGatePass**: Isolates RZ gates for individual processing
-
-### Compilation Workflows
-- Pre-built workflows for circuit, unitary, state preparation, and state mapping compilation
-- Support for multiple optimization levels (1-4)
-- Configurable synthesis precision and error thresholds
-- Optional RZ gate decomposition into Clifford+T
-
 ## Installation
 BQSKit-FT can be installed from PyPI using
 ```bash
 pip install bqskit-ft
 ```
 
-### Dependencies
-```bash
-pip install bqskit numpy scipy pygridsynth
-```
-
-### Install BQSKit-FT
+### Install from github
+For the most up to date version install from github using:
 ```bash
 git clone https://github.com/BQSKit/bqskit-ft.git
 cd bqskit-ft
@@ -48,7 +26,7 @@ pip install -e .
 ## Quick Start
 
 ### Basic Clifford+T Compilation
-
+Synthesis to fault-tolerant gate sets is done by specifying a fault-tolerant `MachineModel`. For The Clifford+T gate set, that is the `CliffordTModel`. While the Clifford+RZ gate set is not fault-tolerant, it's useful to have. The Clifford+RZ gate set can be targeted by specifying a `CliffordRZModel`.
 ```python
 from bqskit import Circuit, compile
 from bqskit.ft import CliffordTModel
@@ -61,7 +39,7 @@ circuit.append_gate(RZGate(), [0], [0.12345])  # Arbitrary angle
 circuit.append_gate(RZGate(), [1], [0.67890])
 
 # Define fault-tolerant machine model
-model = CliffordTModel(2)
+model = CliffordTModel(2)  # or model = CliffordRZModel(2)
 
 # Compile to Clifford+T gate set
 ft_circuit = compile(circuit, model)
@@ -70,7 +48,7 @@ ft_circuit = compile(circuit, model)
 print(f"Gate set: {ft_circuit.gate_set}")
 ```
 
-### High-Precision RZ Synthesis
+### High-Precision RZ Synthesis with `pygridsynth`
 
 ```python
 from bqskit.ft.ftpasses import GridSynthPass
@@ -89,29 +67,9 @@ with Compiler() as compiler:
 print(f"Synthesized with {result.num_operations} gates")
 ```
 
-### Custom Workflows
-
-```python
-from bqskit.ft.ftpasses import IsolateRZGatePass, GridSynthPass
-from bqskit.passes import ForEachBlockPass, UnfoldPass
-
-# Build custom workflow for mixed circuits
-workflow = [
-    IsolateRZGatePass(),                    # Isolate RZ gates
-    ForEachBlockPass([GridSynthPass(15)]),  # Synthesize each RZ gate
-    UnfoldPass(),                           # Flatten the circuit
-]
-
-with Compiler() as compiler:
-    result = compiler.compile(circuit, workflow)
-```
-
 ## Machine Models
-
 ### CliffordTModel
 Represents a fault-tolerant quantum computer with the Clifford+T gate set:
-- **Clifford gates**: H, X, Y, Z, S, S†, √X, CNOT, CZ, SWAP
-- **Non-Clifford gates**: T, T†, RZ
 
 ```python
 from bqskit.ft import CliffordTModel
@@ -126,8 +84,6 @@ model = CliffordTModel(
 
 ### CliffordRZModel
 Alternative model that keeps RZ gates (no T gate decomposition):
-- **Clifford gates**: H, X, Y, Z, S, S†, √X, CNOT, CZ, SWAP
-- **Non-Clifford gates**: T, T†, RZ (RZ gates preserved)
 
 ```python
 from bqskit.ft import CliffordRZModel
@@ -135,69 +91,10 @@ from bqskit.ft import CliffordRZModel
 model = CliffordRZModel(num_qudits=3)
 ```
 
-## Synthesis Passes
-
-### GridSynthPass
-Implements the gridsynth algorithm for optimal Clifford+T synthesis of RZ gates:
-
-```python
-from bqskit.ft.ftpasses import GridSynthPass
-
-# Precision: 10^-15 approximation error
-gridsynth = GridSynthPass(precision=15)
-```
-
-**Features:**
-- Arbitrary precision synthesis using mpmath
-- Provably optimal T-count for single-qubit unitaries
-- Configurable precision (affects T-gate count vs. accuracy trade-off)
-
-### RoundToDiscreteZPass
-Rounds RZ gates to the nearest π/4 multiple (Clifford+T equivalent):
-
-```python
-from bqskit.ft.ftpasses import RoundToDiscreteZPass
-
-rounder = RoundToDiscreteZPass(synthesis_epsilon=1e-8)
-```
-
-**Use cases:**
-- Fast approximation for near-Clifford+T angles
-- Pre-processing step before gridsynth
-- Error-tolerant applications
-
-## Compilation Options
-
-### Optimization Levels
-- **Level 1**: Fast compilation, basic optimization
-- **Level 2**: Balanced speed/quality
-- **Level 3**: Aggressive optimization
-- **Level 4**: Maximum optimization (slowest)
-
-### Synthesis Parameters
-- `synthesis_epsilon`: Maximum unitary distance error (default: 1e-8)
-- `max_synthesis_size`: Maximum block size for synthesis (default: 3)
-- `decompose_rz`: Whether to decompose RZ gates to Clifford+T (default: True)
-
-```python
-from bqskit import compile
-from bqskit.ft import CliffordTModel
-
-model = CliffordTModel(2)
-
-# High-precision, aggressive optimization
-result = compile(
-    circuit,
-    model,
-    optimization_level=4,
-    synthesis_epsilon=1e-12,
-    max_synthesis_size=4
-)
-```
-
 ## Advanced Usage
 
 ### Custom Gate Sets
+Other gate sets can be targeted with the following:
 ```python
 from bqskit.ft import FaultTolerantModel
 from bqskit.ir.gates import HGate, CNOTGate, TGate

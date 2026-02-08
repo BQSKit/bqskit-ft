@@ -26,7 +26,7 @@ pip install -e .
 ## Quick Start
 
 ### Basic Clifford+T Compilation
-Synthesis to fault-tolerant gate sets is done by specifying a fault-tolerant `MachineModel`. For The Clifford+T gate set, that is the `CliffordTModel`. While the Clifford+RZ gate set is not fault-tolerant, it's useful to have. The Clifford+RZ gate set can be targeted by specifying a `CliffordRZModel`.
+Synthesis to fault-tolerant gate sets is done by specifying a fault-tolerant `MachineModel`. For The Clifford+T gate set, that is the `CliffordTModel`. While the Clifford+RZ gate set is not fault-tolerant, it's useful to have. The Clifford+RZ gate set can be targeted by specifying a `CliffordRZModel`. Note that these methods use `from bqskit import compile`, not the `compile` function from `bqskit.compiler.Compiler`.
 ```python
 from bqskit import Circuit, compile
 from bqskit.ft import CliffordTModel
@@ -65,6 +65,19 @@ with Compiler() as compiler:
     result = compiler.compile(circuit, [gridsynth])
 
 print(f"Synthesized with {result.num_operations} gates")
+```
+
+### Using `Compiler()` instead of `bqskit.compile`
+If using the `Compiler()` class, the passes that make up default Clifford+T and Clifford+RZ conversion workflows can be imported like:
+```python
+from bqskit.ft.compiler import Compiler
+from bqskit.ft.cliffordrz import build_cliffordrz_workflow
+
+passes = build_cliffordrz_workflow()
+
+with Compiler() as compiler:
+    result = compiler.compile(circuit, passes)
+assert all([gate in clifford_rz_gates for gate in result.gate_set])
 ```
 
 ## Machine Models

@@ -94,7 +94,7 @@ def clifford_replace() -> BasePass:
 
 
 def build_cliffordt_workflow(
-    optimization_level: int,
+    optimization_level: int = 1,
     synthesis_epsilon: float = 1e-8,
     max_synthesis_size: int = 3,
     error_threshold: float | None = None,

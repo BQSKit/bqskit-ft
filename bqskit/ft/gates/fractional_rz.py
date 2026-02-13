@@ -7,9 +7,10 @@ import numpy.typing as npt
 from bqskit.ir.gates.qubitgate import QubitGate
 from bqskit.qis.unitary.unitary import RealVector
 from bqskit.qis.unitary.unitarymatrix import UnitaryMatrix
+from bqskit.utils.cachedclass import CachedClass
 
 
-class FractionalRZGate(QubitGate):
+class FractionalRZGate(QubitGate, CachedClass):
     """
     A gate representing an arbitrary rotation around the Z axis.
 
@@ -20,7 +21,7 @@ class FractionalRZGate(QubitGate):
 
     _num_qudits = 1
     _num_params = 2
-    _qasm_name = 'rz'
+    _qasm_name = 'fractional_rz'
 
     def get_unitary(self, params: RealVector = []) -> UnitaryMatrix:
         """Return the unitary for this gate, see :class:`Unitary` for more."""

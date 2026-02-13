@@ -3,119 +3,43 @@ from itertools import cycle
 
 from numpy import pi
 from numpy import round
+from numpy import random
 
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.passdata import PassData
-from bqskit.ft.gadgets.qft import QFTGadget
-from bqskit.ft.gates.fractional_rz import FractionalRZGate
-from bqskit.ft.gates.gidney_adder import GidneyAdder
 from bqskit.ir.circuit import Circuit
-from bqskit.ir.gates.circuitgate import CircuitGate
-from bqskit.ir.gates.constant.cx import CNOTGate
-from bqskit.ir.gates.constant.identity import IdentityGate
-from bqskit.ir.gates.constant.s import SGate
-from bqskit.ir.gates.constant.sdg import SdgGate
-from bqskit.ir.gates.constant.t import TGate
-from bqskit.ir.gates.constant.tdg import TdgGate
-from bqskit.ir.gates.constant.x import XGate
-from bqskit.ir.gates.constant.z import ZGate
-from bqskit.ir.gates.parameterized.rz import RZGate
-from bqskit.ir.operation import Operation
+from bqskit.ir.gates.constant.cz import CZGate
+from bqskit.ir.gates.constant.h import HGate
+from bqskit.ir.point import CircuitPoint
+
+from bqskit.ft.gates.logical_and import LogicalAndDgGate
 
 
-class ConvertToPKAC(BasePass):
+class PKACtoGatesPass(BasePass):
     '''
-    Pass that converts all FractionalRZGates to a circuit with a QFT 
-    and GidneyAdders.
-
-    The new circuit will have 3k-1 more qubits than the original circuit.
-    Of these, 2k will be permanent data qubits, and k-1 will be ancilla
-    qubits that disappear after each adder. I'm not sure how to notate that
-    right now.
+    Pass that converts all GidneyAdders, QFTs, and LogicalAnds to gates 
+    placeable in tilers. Importantly, this pass does *not* keep the unitary
+    of the circuit the same, since we replace LogicalAndInverses with an
+    H gate and control Z (which is applied 50% of the time). 
+    This is because we want to be able to test the PKAC mapping.
     '''
-
-    def __init__(self, k: int = 3) -> None:
-        self.k = k
-
-
-
-    def calculate_cnot_circuit(self, numerator: int) -> Circuit: 
-        '''
-        Calculate the circuit of CNOTs needed to apply the appropriate RZ
-        rotation. Starting with LSB of target, applying a CNOT applies an
-        RZ of 2*pi / 2^k on the control qubit. LSB + 1 applies an RZ of 
-        2*pi / 2^(k-1), and so forth. If you want to apply RZ(-2*pi / 2^k), 
-        you can apply an X on the LSB and then a CNOT. We make the circuit
-        to minimize the number of CNOTs.
-
-        Args:
-            numerator (int): The numerator of the angle to apply, where the
-                denominator is 2^k. For example, if k = 3 and you want to apply
-                RZ(pi/4), the numerator would be 1, since pi/4 = 2*pi / 2^3.
-
-        '''
-        circ = Circuit(self.k + 1)
-        # Let 0 be the control and 1...k be the target register for the adder
-
-        # Run NAF algorithm to find the optimal bitstring
-        bitstring = []
-        n = numerator
-        while n > 0:
-            if n % 2 == 0:
-                bitstring.append(0)
-                n = n // 2
-            else:
-                r = 2 - (n % 4)
-                bitstring.append(2 - (n % 4))
-                n = (n - r) // 2
-
-        # Now bitstring[i] tells us whether we need to apply a CNOT with target
-        for i, bit in enumerate(bitstring):
-            # LSB is the last bit of register
-            target_ind = self.k - i
-            if bit == 1:
-                circ.append_gate(CNOTGate(), [0, target_ind])
-            elif bit == -1:
-                circ.append_gate(XGate(), [target_ind])
-                circ.append_gate(CNOTGate(), [0, target_ind])
-
-        return circ
-
-
-
     async def run(self, circuit: Circuit, data: PassData) -> None:
-        new_circ = Circuit(circuit.num_qudits + 3*self.max_k - 1)
- 
-        n = circuit.num_qudits
-        
-        input_a_qubits = list(range(n, n + self.k))
-        input_b_qubits = list(range(n + self.k, n + 2 * self.k))
-        ancilla_qubits = list(range(n + 2 * self.k, n + 3 * self.k - 1))
+        # First step, unfold all the gadgets in the circuit
+        # This will unfold all the GidneyAdders
+        circuit.unfold_all()
 
-        # Initialize input B in QFT state
-        new_circ.append_gate(XGate(), [input_b_qubits[-1]])
-        new_circ.append_circuit(QFTGadget.generate(self.k), input_b_qubits)
+        # Now, we should replace all LogicalAndDgs with the measure and fixup
+        for cycle, op in circuit.operations_with_cycles():
+            if isinstance(op.gate, LogicalAndDgGate):
+                # Replace with H and control Z
+                new_circ = Circuit(3)
+                new_circ.append_gate(HGate(), [2])
+                # Apply a CZ gate with 50% probability
+                if random.rand() < 0.5:
+                    new_circ.append_gate(CZGate(), [0, 1])
 
-        for op in circuit.operations():
-            if isinstance(op.gate, FractionalRZGate):
-                # Replace with adder circuit
-                q = op.location[0]
-                
-                # Add a CNOT to LSB on input A
-                cnots = self.calculate_cnot_circuit(op.params[0], 
-                                                    input_a_qubits)
-                new_circ.append_circuit(cnots, [q] + input_a_qubits)
+                pt = CircuitPoint(cycle, op.location[0])
+                circuit.replace_with_circuit(pt, new_circ, as_circuit_gate=True)
 
-                # Apply adder on A, B, and ancilla
-                new_circ.append_gate(GidneyAdder(self.k), 
-                                     (input_a_qubits + input_b_qubits 
-                                      + ancilla_qubits))
-                # Kickback with CNOT
-                cnots = self.calculate_cnot_circuit(op.params[0], 
-                                                    input_a_qubits)
-                
-                new_circ.append_circuit(cnots, [q] + input_a_qubits)
-            else:
-                new_circ.append(op)
-
-        circuit.become(new_circ)
+        # Unfold all LogicalAndDgs
+        circuit.unfold_all()

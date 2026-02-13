@@ -3,11 +3,14 @@ from __future__ import annotations
 
 from bqskit.ft.ftpasses.convert_to_pkac import ConvertToPKAC
 from bqskit.compiler.compiler import Compiler
+from bqskit.ft.ftpasses.pkac_to_gates import PKACtoGatesPass
 from bqskit.ft.gates.fractional_rz import FractionalRZGate
 from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates import HGate, CNOTGate, XGate
 from bqskit.ft.gadgets.qft import QFTGadget
 from bqskit.ft.gates.gidney_adder import GidneyAdder
+from bqskit.ir.gates.constant.t import TGate
+from bqskit.ir.gates.constant.tdg import TdgGate
 from bqskit.ir.gates.parameterized.rz import RZGate
 from bqskit.qis.state.state import StateVector
 from numpy import allclose, pi, random
@@ -154,7 +157,7 @@ class TestCompileDefaults:
         # apply the PKAC decomposition to it. Then verify that the output
         # state is the same as the original circuit.
 
-        N = 4
+        N = 3
         K = 3
         num_layers = 3
 
@@ -166,10 +169,8 @@ class TestCompileDefaults:
         for _ in range(num_layers):
             # Choose 3 random qubits and apply random Rzs to them
             rand_qubits = random.choice(N, size=2, replace=False)
-            print(rand_qubits)
             for i, q in enumerate(rand_qubits):
                 num = random.randint(1, K)
-                print(num)
                 circ.append_gate(FractionalRZGate(), [q], [num, K])
 
             # Should do some kickbacks
@@ -179,6 +180,8 @@ class TestCompileDefaults:
         for i in range(N):
             circ.append_gate(HGate(), [i])
 
+        orig_num_rzs = circ.count(FractionalRZGate())
+        orig_h_gates = circ.count(HGate())
 
         # Calculate probabilities for original circuit
         in_state = StateVector.zero(N)
@@ -196,15 +199,46 @@ class TestCompileDefaults:
         ]
 
         with Compiler() as compiler:
-            compiler.compile(circ, workflow=workflow)
+            pkac_circ = compiler.compile(circ, workflow=workflow)
 
         # Calculate probabilities for PKAC circuit
-        pkac_out = circ.get_statevector(in_state)
+        in_state = StateVector.zero(pkac_circ.num_qudits)
+        pkac_out = pkac_circ.get_statevector(in_state)
         pkac_probs = pkac_out.get_probs()
         final_probs = []
         for qubit_ind in range(N):
             prob = sum(prob for i, prob in enumerate(pkac_probs) if 
-                       (i & (1 << (N - 1 - qubit_ind))) != 0)
+                       (i & (1 << (pkac_circ.num_qudits - 1 - qubit_ind))) != 0)
             final_probs.append(prob)
 
         assert allclose(final_probs, expected_probs, atol=1e-6)
+
+        # Now test decomposition of PKAC circuit
+        workflow = [
+            PKACtoGatesPass(),
+        ]
+
+        with Compiler() as compiler:
+            final_circ = compiler.compile(pkac_circ, workflow=workflow)
+
+        # Now let's see if the number of Ts and H gates are correct.
+        num_ts_from_gidney = 4 * K - 4
+        num_ts_from_qft = 3*K - 3 # Is this correct? TODO: Mathias
+        expected_num_ts = orig_num_rzs * (num_ts_from_gidney) + num_ts_from_qft 
+
+        num_ts = final_circ.count(TGate()) + final_circ.count(TdgGate())
+
+        assert num_ts == expected_num_ts
+
+        num_hs_from_gidney = (K - 1) * 3 # Each ancilla gets 3 H gates
+        num_hs_from_qft = K # QFT gadget has 1 H gate per qubit # TODO: Mathias
+
+        expected_num_hs = orig_num_rzs * (num_hs_from_gidney) + num_hs_from_qft + orig_h_gates
+
+        num_hs = final_circ.count(HGate())
+        
+        assert num_hs == expected_num_hs
+
+
+
+

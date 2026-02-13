@@ -160,6 +160,7 @@ class TestCompileDefaults:
         N = 3
         K = 3
         num_layers = 3
+        rzs_per_layer = 2
 
         circ = Circuit(N)
 
@@ -168,10 +169,10 @@ class TestCompileDefaults:
 
         for _ in range(num_layers):
             # Choose 3 random qubits and apply random Rzs to them
-            rand_qubits = random.choice(N, size=2, replace=False)
+            rand_qubits = random.choice(N, size=rzs_per_layer, replace=False)
             for i, q in enumerate(rand_qubits):
                 num = random.randint(1, K)
-                circ.append_gate(FractionalRZGate(), [q], [num, K])
+                circ.append_gate(FractionalRZGate(num, K), [q])
 
             # Should do some kickbacks
             for i in range(N - 1):
@@ -180,7 +181,7 @@ class TestCompileDefaults:
         for i in range(N):
             circ.append_gate(HGate(), [i])
 
-        orig_num_rzs = circ.count(FractionalRZGate())
+        orig_num_rzs = num_layers * rzs_per_layer
         orig_h_gates = circ.count(HGate())
 
         # Calculate probabilities for original circuit

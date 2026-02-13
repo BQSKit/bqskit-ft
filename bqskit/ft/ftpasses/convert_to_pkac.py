@@ -102,15 +102,13 @@ class ConvertToPKAC(BasePass):
                 q = op.location[0]
                 
                 # Add a CNOT to LSB on input A
-                cnots = self.calculate_cnot_circuit(op.params[0])
+                cnots = self.calculate_cnot_circuit(op.gate.numerator)
                 new_circ.append_circuit(cnots, [q] + input_a_qubits)
 
                 # Apply adder on A, B, and ancilla
                 new_circ.append_gate(GidneyAdder(self.k), 
                                      (input_a_qubits + input_b_qubits 
                                       + ancilla_qubits))
-                # Kickback with CNOT
-                cnots = self.calculate_cnot_circuit(op.params[0])
                 
                 new_circ.append_circuit(cnots, [q] + input_a_qubits)
             else:

@@ -1,13 +1,16 @@
 """This file tests the GidneyAdder gate and PKAC Rz gate construction."""
 from __future__ import annotations
 
+from bqskit.ft.ftpasses.convert_to_pkac import ConvertToPKAC
+from bqskit.compiler.compiler import Compiler
+from bqskit.ft.gates.fractional_rz import FractionalRZGate
 from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates import HGate, CNOTGate, XGate
 from bqskit.ft.gadgets.qft import QFTGadget
 from bqskit.ft.gates.gidney_adder import GidneyAdder
 from bqskit.ir.gates.parameterized.rz import RZGate
 from bqskit.qis.state.state import StateVector
-from numpy import allclose, pi
+from numpy import allclose, pi, random
 class TestCompileDefaults:
 
     def construct_pkac_circuit(n: int) -> Circuit:
@@ -38,18 +41,25 @@ class TestCompileDefaults:
         # 3n->4n-2 - ancilla for adder
         c = Circuit(4 * n - 1)
 
-        for i in range(n):
-            c.append_gate(HGate(), [i]) 
-            # Apply CNOT onto bottom bit of the input and the first ancilla
-            c.append_gate(CNOTGate(), [i, n + i])
+        state_qubits = list(range(n))
+        input_a = list(range(n, 2 * n))
+        input_b = list(range(2 * n, 3 * n))
+        ancilla = list(range(3 * n, 4 * n - 1))
 
-        # Generate QFT state for the bottom n ancilla, LSB is 6
-        c.append_gate(XGate(), [2 * n + (n - 1)])
+        for i, q in enumerate(state_qubits):
+            c.append_gate(HGate(), [q]) 
+            # Apply CNOT onto a different wire of input A. This applies
+            # RZ(pi) on 0th qubit, RZ(pi/2) on 1st qubit, RZ(pi/4) on 2nd qubit, 
+            # and so forth
+            c.append_gate(CNOTGate(), [q, input_a[i]])
+
+        # Generate QFT state for input b
+        c.append_gate(XGate(), [input_b[-1]]) 
         # c.append_gate(generate_qft(n), list(range(2 * n, 3 * n)))
-        c.append_circuit(QFTGadget.generate(n), list(range(2 * n, 3 * n)))
+        c.append_circuit(QFTGadget.generate(n), input_b)
         # Apply an adder to add the inputs
         # c.append_gate(generate_adder(n), list(range(n, 3 * n)))
-        c.append_gate(GidneyAdder(n), list(range(n, 4 * n - 1)))
+        c.append_gate(GidneyAdder(n), input_a + input_b + ancilla)
 
         for i in range(n):
             # Apply CNOT onto bottom bit of the input and the first ancilla
@@ -90,10 +100,12 @@ class TestCompileDefaults:
 
             assert allclose(output, expected_output, atol=1e-8)
 
-    def test_pkac(self) -> None:
+    def test_pkac_rotations(self) -> None:
         N = 3
         circuit = TestCompileDefaults.construct_pkac_circuit(N)
-        in_state = StateVector.zero(4 * N - 1)
+        total_qubits = 4*N - 1
+        assert circuit.num_qudits == total_qubits
+        in_state = StateVector.zero(total_qubits)
         full_out = circuit.get_statevector(in_state)
 
         all_probs = full_out.get_probs()
@@ -103,7 +115,7 @@ class TestCompileDefaults:
         for qubit_ind in range(N):
             # Use MSB to get probability of qubit being 1
             prob = sum(prob for i, prob in enumerate(all_probs) if 
-                       (i & (1 << (4*N - 2 - qubit_ind))) != 0)
+                       (i & (1 << (total_qubits - 1 - qubit_ind))) != 0)
             final_probs.append(prob)
 
         # Now calculate expected probabilities
@@ -134,5 +146,65 @@ class TestCompileDefaults:
         hzh_circ.append_gate(HGate(), [0])
         probs = hzh_circ.get_statevector(single_in).get_probs()
         expected_probs[2] = probs[1]  # Probability of qubit being 1
+
+        assert allclose(final_probs, expected_probs, atol=1e-6)
+
+    def test_pkac_decomposition(self) -> None:
+        # Contstruct a circuit with random FractionalRZGates and then
+        # apply the PKAC decomposition to it. Then verify that the output
+        # state is the same as the original circuit.
+
+        N = 4
+        K = 3
+        num_layers = 3
+
+        circ = Circuit(N)
+
+        for i in range(N):
+            circ.append_gate(HGate(), [i])
+
+        for _ in range(num_layers):
+            # Choose 3 random qubits and apply random Rzs to them
+            rand_qubits = random.choice(N, size=2, replace=False)
+            print(rand_qubits)
+            for i, q in enumerate(rand_qubits):
+                num = random.randint(1, K)
+                print(num)
+                circ.append_gate(FractionalRZGate(), [q], [num, K])
+
+            # Should do some kickbacks
+            for i in range(N - 1):
+                circ.append_gate(CNOTGate(), [i, i + 1])
+
+        for i in range(N):
+            circ.append_gate(HGate(), [i])
+
+
+        # Calculate probabilities for original circuit
+        in_state = StateVector.zero(N)
+        original_out = circ.get_statevector(in_state)
+        original_probs = original_out.get_probs()
+        expected_probs = []
+        for qubit_ind in range(N):
+            prob = sum(prob for i, prob in enumerate(original_probs) if 
+                       (i & (1 << (N - 1 - qubit_ind))) != 0)
+            expected_probs.append(prob)
+
+        # Now, convert to PKAC
+        workflow = [
+            ConvertToPKAC(K),
+        ]
+
+        with Compiler() as compiler:
+            compiler.compile(circ, workflow=workflow)
+
+        # Calculate probabilities for PKAC circuit
+        pkac_out = circ.get_statevector(in_state)
+        pkac_probs = pkac_out.get_probs()
+        final_probs = []
+        for qubit_ind in range(N):
+            prob = sum(prob for i, prob in enumerate(pkac_probs) if 
+                       (i & (1 << (N - 1 - qubit_ind))) != 0)
+            final_probs.append(prob)
 
         assert allclose(final_probs, expected_probs, atol=1e-6)

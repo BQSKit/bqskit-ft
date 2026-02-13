@@ -15,8 +15,7 @@ from bqskit.ir.gates.constantgate import ConstantGate
 from bqskit.ir.gates.qubitgate import QubitGate
 from bqskit.qis.unitary.unitarymatrix import UnitaryMatrix
 
-if TYPE_CHECKING:
-    from bqskit.ir.circuit import Circuit
+from bqskit.ir.circuit import Circuit
 
 class LogicalAndGate(CircuitGate):
     """

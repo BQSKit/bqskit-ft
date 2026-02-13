@@ -10,8 +10,8 @@ from bqskit.ir.gates.constant.t import TGate
 
 from bqskit.ft.gates.logical_and import LogicalAndGate, LogicalAndDgGate
 
-if TYPE_CHECKING:
-    from bqskit.ir.circuit import Circuit
+
+from bqskit.ir.circuit import Circuit
 
 class GidneyAdder(CircuitGate):
     """

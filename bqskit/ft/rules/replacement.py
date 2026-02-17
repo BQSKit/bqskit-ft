@@ -36,7 +36,7 @@ class ReplacementRule(BasePass):
     def __init__(
         self,
         indicator: Callable[[Circuit | Operation], bool],
-        replacement: Circuit | CircuitGate | Gate,
+        replacement: Circuit | CircuitGate | Gate | None,
     ) -> None:
         """
         Replace a partition with `replacement` if `indicator` is True.
@@ -45,12 +45,14 @@ class ReplacementRule(BasePass):
             indicator (Callable[[Circuit | Operation], bool]): The function
                 to determine if the replacement should be applied.
 
-            replacement (Circuit | CircuitGate | Gate): The Circuit or Gate
+            replacement (Circuit | CircuitGate | Gate | None): The Circuit or Gate
                 to replace the partition with. The width of the replacement
-                must match the partition's width.
+                must match the partition's width. If None, the gate is removed.
         """
         self.indicator = indicator
-        if isinstance(replacement, Gate):
+        if replacement is None:
+            self.replacement = Circuit(1)
+        elif isinstance(replacement, Gate):
             num_qudits = replacement.num_qudits
             self.replacement = Circuit(num_qudits, replacement.radixes)
             self.replacement.append_gate(

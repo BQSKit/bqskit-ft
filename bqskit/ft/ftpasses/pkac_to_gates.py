@@ -10,7 +10,11 @@ from bqskit.compiler.passdata import PassData
 from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates.constant.cz import CZGate
 from bqskit.ir.gates.constant.h import HGate
+from bqskit.ir.gates.measure import MeasurementPlaceholder
 from bqskit.ir.point import CircuitPoint
+
+from bqskit.ir.operation import Operation
+from bqskit.ir.gates import CircuitGate
 
 from bqskit.ft.gates.logical_and import LogicalAndDgGate
 
@@ -28,18 +32,28 @@ class PKACtoGatesPass(BasePass):
         # This will unfold all the GidneyAdders
         circuit.unfold_all()
 
+        base_log_and_circ = Circuit(3)
+        base_log_and_circ.append_gate(HGate(), [2])
+        base_log_and_circ.append_gate(MeasurementPlaceholder([("a", 1)], {2: ("a", 0)}), [2])
+
         # Now, we should replace all LogicalAndDgs with the measure and fixup
+        pts = []
+        new_circuit_gates = []
         for cycle, op in circuit.operations_with_cycles():
             if isinstance(op.gate, LogicalAndDgGate):
-                # Replace with H and control Z
-                new_circ = Circuit(3)
-                new_circ.append_gate(HGate(), [2])
+                # Replace with H, measurement and control Z
+                new_circ = base_log_and_circ.copy()
                 # Apply a CZ gate with 50% probability
                 if random.rand() < 0.5:
                     new_circ.append_gate(CZGate(), [0, 1])
 
                 pt = CircuitPoint(cycle, op.location[0])
-                circuit.replace_with_circuit(pt, new_circ, as_circuit_gate=True)
+                new_circ_gate = CircuitGate(new_circ)
+                new_circ_op = Operation(new_circ_gate, op.location)
+                pts.append(pt)
+                new_circuit_gates.append(new_circ_op)
+                
+        circuit.batch_replace(pts, new_circuit_gates)
 
         # Unfold all LogicalAndDgs
         circuit.unfold_all()

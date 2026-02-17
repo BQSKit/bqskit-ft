@@ -10,17 +10,9 @@ from bqskit.ft.gadgets.qft import QFTGadget
 from bqskit.ft.gates.fractional_rz import FractionalRZGate
 from bqskit.ft.gates.gidney_adder import GidneyAdder
 from bqskit.ir.circuit import Circuit
-from bqskit.ir.gates.circuitgate import CircuitGate
 from bqskit.ir.gates.constant.cx import CNOTGate
-from bqskit.ir.gates.constant.identity import IdentityGate
-from bqskit.ir.gates.constant.s import SGate
-from bqskit.ir.gates.constant.sdg import SdgGate
-from bqskit.ir.gates.constant.t import TGate
-from bqskit.ir.gates.constant.tdg import TdgGate
 from bqskit.ir.gates.constant.x import XGate
-from bqskit.ir.gates.constant.z import ZGate
-from bqskit.ir.gates.parameterized.rz import RZGate
-from bqskit.ir.operation import Operation
+from bqskit.ir.gates.measure import MeasurementPlaceholder
 
 
 class ConvertToPKAC(BasePass):
@@ -95,6 +87,10 @@ class ConvertToPKAC(BasePass):
         # Initialize input B in QFT state
         new_circ.append_gate(XGate(), [input_b_qubits[-1]])
         new_circ.append_circuit(QFTGadget.generate(self.k), input_b_qubits)
+
+        # Initialize ancilla qubits with measurements
+        for q in ancilla_qubits:    
+            new_circ.append_gate(MeasurementPlaceholder([("a", 1)], {q: ("a", 0)}), [q])
 
         for op in circuit.operations():
             if isinstance(op.gate, FractionalRZGate):

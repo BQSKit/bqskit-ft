@@ -12,6 +12,7 @@ from bqskit.ft.gates.logical_and import LogicalAndGate, LogicalAndDgGate
 
 
 from bqskit.ir.circuit import Circuit
+from bqskit.ir.gates.reset import Reset
 
 class GidneyAdder(CircuitGate):
     """
@@ -55,6 +56,7 @@ class GidneyAdder(CircuitGate):
         c = Circuit(3 * n - 1)
         # Initialize all ancilla in T state
         for i in range(2*n, 3*n - 1):
+            c.append_gate(Reset(), [i])
             c.append_gate(HGate(), [i])
             c.append_gate(TGate(), [i])
 

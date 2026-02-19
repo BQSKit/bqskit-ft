@@ -1,8 +1,4 @@
 from __future__ import annotations
-from itertools import cycle
-
-from numpy import pi
-from numpy import round
 
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.passdata import PassData
@@ -17,7 +13,7 @@ from bqskit.ir.gates.measure import MeasurementPlaceholder
 
 class ConvertToPKAC(BasePass):
     '''
-    Pass that converts all FractionalRZGates to a circuit with a QFT 
+    Pass that converts all FractionalRZGates to a circuit with a QFT
     and GidneyAdders.
 
     The new circuit will have 3k-1 more qubits than the original circuit.
@@ -29,14 +25,12 @@ class ConvertToPKAC(BasePass):
     def __init__(self, k: int = 3) -> None:
         self.k = k
 
-
-
-    def calculate_cnot_circuit(self, numerator: int) -> Circuit: 
+    def calculate_cnot_circuit(self, numerator: int) -> Circuit:
         '''
         Calculate the circuit of CNOTs needed to apply the appropriate RZ
         rotation. Starting with LSB of target, applying a CNOT applies an
-        RZ of 2*pi / 2^k on the control qubit. LSB + 1 applies an RZ of 
-        2*pi / 2^(k-1), and so forth. If you want to apply RZ(-2*pi / 2^k), 
+        RZ of 2*pi / 2^k on the control qubit. LSB + 1 applies an RZ of
+        2*pi / 2^(k-1), and so forth. If you want to apply RZ(-2*pi / 2^k),
         you can apply an X on the LSB and then a CNOT. We make the circuit
         to minimize the number of CNOTs.
 
@@ -73,13 +67,11 @@ class ConvertToPKAC(BasePass):
 
         return circ
 
-
-
     async def run(self, circuit: Circuit, data: PassData) -> None:
-        new_circ = Circuit(circuit.num_qudits + 3*self.k - 1)
- 
+        new_circ = Circuit(circuit.num_qudits + 3 * self.k - 1)
+
         n = circuit.num_qudits
-        
+
         input_a_qubits = list(range(n, n + self.k))
         input_b_qubits = list(range(n + self.k, n + 2 * self.k))
         ancilla_qubits = list(range(n + 2 * self.k, n + 3 * self.k - 1))
@@ -89,23 +81,30 @@ class ConvertToPKAC(BasePass):
         new_circ.append_circuit(QFTGadget.generate(self.k), input_b_qubits)
 
         # Initialize ancilla qubits with measurements
-        for q in ancilla_qubits:    
-            new_circ.append_gate(MeasurementPlaceholder([("a", 1)], {q: ("a", 0)}), [q])
+        for q in ancilla_qubits:
+            new_circ.append_gate(
+                MeasurementPlaceholder(
+                    [('a', 1)], {q: ('a', 0)},
+                ), [q],
+            )
 
         for op in circuit.operations():
             if isinstance(op.gate, FractionalRZGate):
                 # Replace with adder circuit
                 q = op.location[0]
-                
                 # Add a CNOT to LSB on input A
                 cnots = self.calculate_cnot_circuit(op.gate.numerator)
                 new_circ.append_circuit(cnots, [q] + input_a_qubits)
 
                 # Apply adder on A, B, and ancilla
-                new_circ.append_gate(GidneyAdder(self.k), 
-                                     (input_a_qubits + input_b_qubits 
-                                      + ancilla_qubits))
-                
+                new_circ.append_gate(
+                    GidneyAdder(self.k),
+                    (
+                        input_a_qubits + input_b_qubits
+                        + ancilla_qubits
+                    ),
+                )
+
                 new_circ.append_circuit(cnots, [q] + input_a_qubits)
             else:
                 new_circ.append(op)

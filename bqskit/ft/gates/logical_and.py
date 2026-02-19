@@ -1,33 +1,33 @@
 """This module implements the LogicalAndGate and LogicalAndDgGate."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import numpy as np
 
+from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates.circuitgate import CircuitGate
 from bqskit.ir.gates.constant.cx import CNOTGate
 from bqskit.ir.gates.constant.h import HGate
-from bqskit.ir.gates.constant.t import TGate
 from bqskit.ir.gates.constant.s import SGate
+from bqskit.ir.gates.constant.t import TGate
 from bqskit.ir.gates.constant.tdg import TdgGate
 from bqskit.ir.gates.constantgate import ConstantGate
 from bqskit.ir.gates.qubitgate import QubitGate
 from bqskit.qis.unitary.unitarymatrix import UnitaryMatrix
 
-from bqskit.ir.circuit import Circuit
 
 class LogicalAndGate(CircuitGate):
     """
-    The LogicalAndGate from Gidney's "Halving the cost of quantum addition" paper.
+    The LogicalAndGate from Gidney's "Halving the cost of quantum addition"
+    paper.
 
     https://arxiv.org/pdf/1709.06648
 
     This gate takes three qubits as input. Takes |a,b,T> to |a,b,a AND b>.
 
-    Will not work if the ancilla is not in the T state, 
+    Will not work if the ancilla is not in the T state,
     so it is not a general purpose gate.
     """
+
     def __init__(self) -> None:
         """
 
@@ -66,7 +66,7 @@ class LogicalAndGate(CircuitGate):
         c.append_gate(HGate(), [2])
         c.append_gate(SGate(), [2])
         return c
-    
+
 
 class LogicalAndDgGate(ConstantGate, QubitGate):
     """

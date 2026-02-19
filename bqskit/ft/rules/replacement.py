@@ -45,8 +45,8 @@ class ReplacementRule(BasePass):
             indicator (Callable[[Circuit | Operation], bool]): The function
                 to determine if the replacement should be applied.
 
-            replacement (Circuit | CircuitGate | Gate | None): The Circuit or Gate
-                to replace the partition with. The width of the replacement
+            replacement (Circuit | CircuitGate | Gate | None): The Circuit or
+                Gate to replace the partition with. The width of the replacement
                 must match the partition's width. If None, the gate is removed.
         """
         self.indicator = indicator

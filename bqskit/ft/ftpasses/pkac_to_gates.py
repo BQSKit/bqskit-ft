@@ -1,30 +1,25 @@
 from __future__ import annotations
-from itertools import cycle
 
-from numpy import pi
-from numpy import round
 from numpy import random
 
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.passdata import PassData
+from bqskit.ft.gates.logical_and import LogicalAndDgGate
 from bqskit.ir.circuit import Circuit
+from bqskit.ir.gates import CircuitGate
 from bqskit.ir.gates.constant.cz import CZGate
 from bqskit.ir.gates.constant.h import HGate
 from bqskit.ir.gates.measure import MeasurementPlaceholder
-from bqskit.ir.point import CircuitPoint
-
 from bqskit.ir.operation import Operation
-from bqskit.ir.gates import CircuitGate
-
-from bqskit.ft.gates.logical_and import LogicalAndDgGate
+from bqskit.ir.point import CircuitPoint
 
 
 class PKACtoGatesPass(BasePass):
     '''
-    Pass that converts all GidneyAdders, QFTs, and LogicalAnds to gates 
+    Pass that converts all GidneyAdders, QFTs, and LogicalAnds to gates
     placeable in tilers. Importantly, this pass does *not* keep the unitary
     of the circuit the same, since we replace LogicalAndInverses with an
-    H gate and control Z (which is applied 50% of the time). 
+    H gate and control Z (which is applied 50% of the time).
     This is because we want to be able to test the PKAC mapping.
     '''
     async def run(self, circuit: Circuit, data: PassData) -> None:
@@ -34,7 +29,9 @@ class PKACtoGatesPass(BasePass):
 
         base_log_and_circ = Circuit(3)
         base_log_and_circ.append_gate(HGate(), [2])
-        base_log_and_circ.append_gate(MeasurementPlaceholder([("a", 1)], {2: ("a", 0)}), [2])
+        base_log_and_circ.append_gate(
+            MeasurementPlaceholder([('a', 1)], {2: ('a', 0)}), [2],
+        )
 
         # Now, we should replace all LogicalAndDgs with the measure and fixup
         pts = []
@@ -52,7 +49,7 @@ class PKACtoGatesPass(BasePass):
                 new_circ_op = Operation(new_circ_gate, op.location)
                 pts.append(pt)
                 new_circuit_gates.append(new_circ_op)
-                
+
         circuit.batch_replace(pts, new_circuit_gates)
 
         # Unfold all LogicalAndDgs

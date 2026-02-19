@@ -1,18 +1,15 @@
 """This module implements the GidneyAdder."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
+from bqskit.ft.gates.logical_and import LogicalAndDgGate
+from bqskit.ft.gates.logical_and import LogicalAndGate
+from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates.circuitgate import CircuitGate
 from bqskit.ir.gates.constant.cx import CNOTGate
 from bqskit.ir.gates.constant.h import HGate
 from bqskit.ir.gates.constant.t import TGate
-
-from bqskit.ft.gates.logical_and import LogicalAndGate, LogicalAndDgGate
-
-
-from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates.reset import Reset
+
 
 class GidneyAdder(CircuitGate):
     """
@@ -28,6 +25,7 @@ class GidneyAdder(CircuitGate):
     is the MSB, as is standard in BQSKit.
 
     """
+
     def __init__(self, register_size: int) -> None:
         """
 
@@ -55,14 +53,14 @@ class GidneyAdder(CircuitGate):
         '''
         c = Circuit(3 * n - 1)
         # Initialize all ancilla in T state
-        for i in range(2*n, 3*n - 1):
+        for i in range(2 * n, 3 * n - 1):
             c.append_gate(Reset(), [i])
             c.append_gate(HGate(), [i])
             c.append_gate(TGate(), [i])
 
         for i in range(n - 1):
-            A_i = n - i - 1 # Indexing from MSB to LSB
-            B_i = 2 * n - i - 1 
+            A_i = n - i - 1  # Indexing from MSB to LSB
+            B_i = 2 * n - i - 1
             anc_i = 3 * n - 2 - i
             A_i_plus_1 = n - i - 2
             B_i_plus_1 = 2 * n - i - 2
@@ -85,8 +83,8 @@ class GidneyAdder(CircuitGate):
 
         # Now perform the inverse
         for i in reversed(range(n - 1)):
-            A_i = n - i - 1 # Indexing from MSB to LSB
-            B_i = 2 * n - i - 1 
+            A_i = n - i - 1  # Indexing from MSB to LSB
+            B_i = 2 * n - i - 1
             anc_i = 3 * n - 2 - i
             A_i_plus_1 = n - i - 2
             anc_i_minus_1 = 3 * n - 1 - i
@@ -101,8 +99,8 @@ class GidneyAdder(CircuitGate):
 
         # Final layer of CNOTs
         for i in range(n):
-            A_i = n - i - 1 # Indexing from MSB to LSB
-            B_i = 2 * n - i - 1 
+            A_i = n - i - 1  # Indexing from MSB to LSB
+            B_i = 2 * n - i - 1
             c.append_gate(CNOTGate(), [A_i, B_i])
 
         return c

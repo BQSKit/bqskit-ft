@@ -1,13 +1,15 @@
 """Generate a quantum Fourier transform that can be applied to some qubits."""
+from __future__ import annotations
+
 from numpy import pi
 
 from bqskit.ir.circuit import Circuit
-from bqskit.ir.gates import HGate
-from bqskit.ir.gates import TGate
-from bqskit.ir.gates import TdgGate
-from bqskit.ir.gates import RZGate
 from bqskit.ir.gates import CNOTGate
+from bqskit.ir.gates import HGate
+from bqskit.ir.gates import RZGate
 from bqskit.ir.gates import SwapGate
+from bqskit.ir.gates import TdgGate
+from bqskit.ir.gates import TGate
 
 
 class QFTGadget:
@@ -17,7 +19,7 @@ class QFTGadget:
         """
         A layer of controlled RZ gates decomposed in to CNOTs and RZs
         """
-        assert width >= 2, "Width must be at least 2 for a controlled RZ layer."
+        assert width >= 2, 'Width must be at least 2 for a controlled RZ layer.'
         circuit = Circuit(width)
         for i in range(1, width):
             base = 2 ** (i + 1)
@@ -33,7 +35,7 @@ class QFTGadget:
             circuit.append_gate(gate_i, [i], params_i)
             circuit.append_gate(gate_i, [0], params_i)
         return circuit
-    
+
     @staticmethod
     def generate(num_qudits: int) -> Circuit:
         """
@@ -41,7 +43,7 @@ class QFTGadget:
 
         Args:
             num_qudits (int): The number of qubits the QFT should be applied to.
-        
+
         Returns:
             (CircuitGate): A QFT block that can be applied to qubits.
         """
@@ -75,9 +77,9 @@ if __name__ == '__main__':
     def qft_u(n):
         # this is the qft unitary generator code from qsearch
         root = np.e ** (2j * np.pi / n)
-        return np.array(np.fromfunction(lambda x,y: root**(x*y), (n,n))) / np.sqrt(n)
-    
-    print("=" * 80)
+        return np.fromfunction(lambda x, y: root**(x * y), (n, n)) / np.sqrt(n)
+
+    print('=' * 80)
     one = np.zeros((2 ** num_qudits, 2 ** num_qudits), dtype=complex)
     u_qft = qft_u(2 ** num_qudits)
     dist = circuit.get_unitary().get_distance_from(u_qft)

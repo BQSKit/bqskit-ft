@@ -9,15 +9,14 @@ from numpy import ndarray
 from numpy import pi
 from numpy import sqrt
 
-from bqskit.ir.circuit import Circuit
-
 from bqskit.ft.gadgets.qft import QFTGadget
+from bqskit.ir.circuit import Circuit
 
 
 def qft_unitary(num_qubits: int) -> ndarray:
     n = 2 ** num_qubits
     root = exp(2j * pi / n)
-    return array(fromfunction(lambda x,y: root**(x*y), (n,n)) / sqrt(n))
+    return array(fromfunction(lambda x, y: root**(x * y), (n, n)) / sqrt(n))
 
 
 class TestCompileDefaults:
@@ -27,7 +26,7 @@ class TestCompileDefaults:
         qft = QFTGadget.generate(num_qubits)
         circuit.append_circuit(qft, [_ for _ in range(num_qubits)])
         circuit.unfold_all()
-        print("=" * 80)
+        print('=' * 80)
         u_qft = qft_unitary(num_qubits)
         dist = circuit.get_unitary().get_distance_from(u_qft)
         assert isclose(dist, 0.0)
@@ -38,7 +37,7 @@ class TestCompileDefaults:
         qft = QFTGadget.generate(num_qubits)
         circuit.append_circuit(qft, [_ for _ in range(num_qubits)])
         circuit.unfold_all()
-        print("=" * 80)
+        print('=' * 80)
         u_qft = qft_unitary(num_qubits)
         dist = circuit.get_unitary().get_distance_from(u_qft)
         assert isclose(dist, 0.0)
@@ -49,7 +48,7 @@ class TestCompileDefaults:
         qft = QFTGadget.generate(num_qubits)
         circuit.append_circuit(qft, [_ for _ in range(num_qubits)])
         circuit.unfold_all()
-        print("=" * 80)
+        print('=' * 80)
         u_qft = qft_unitary(num_qubits)
         dist = circuit.get_unitary().get_distance_from(u_qft)
         assert isclose(dist, 0.0)
@@ -60,7 +59,7 @@ class TestCompileDefaults:
         qft = QFTGadget.generate(num_qubits)
         circuit.append_circuit(qft, [_ for _ in range(num_qubits)])
         circuit.unfold_all()
-        print("=" * 80)
+        print('=' * 80)
         u_qft = qft_unitary(num_qubits)
         dist = circuit.get_unitary().get_distance_from(u_qft)
         assert isclose(dist, 0.0)
@@ -71,7 +70,7 @@ class TestCompileDefaults:
         qft = QFTGadget.generate(num_qubits)
         circuit.append_circuit(qft, [_ for _ in range(num_qubits)])
         circuit.unfold_all()
-        print("=" * 80)
+        print('=' * 80)
         u_qft = qft_unitary(num_qubits)
         dist = circuit.get_unitary().get_distance_from(u_qft)
         assert isclose(dist, 0.0)

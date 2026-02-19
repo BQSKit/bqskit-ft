@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 import numpy as np
-import numpy.typing as npt
 
-from bqskit.qis.unitary.unitary import RealVector
-from bqskit.qis.unitary.unitarymatrix import UnitaryMatrix
 from bqskit.ir.gates.constantgate import ConstantGate
 from bqskit.ir.gates.qubitgate import QubitGate
+from bqskit.qis.unitary.unitary import RealVector
+from bqskit.qis.unitary.unitarymatrix import UnitaryMatrix
 
 
 class FractionalRZGate(ConstantGate, QubitGate):
@@ -26,10 +25,9 @@ class FractionalRZGate(ConstantGate, QubitGate):
     def __init__(self, numerator: int = 0, k: int = 0) -> None:
         self.numerator = numerator
         self.k = k
-        assert int(numerator) == numerator, "Numerator must be an integer"
-        assert int(k) == k, "k must be an integer"
-        assert numerator < 2 ** k, "Numerator must be less than 2^k"
-
+        assert int(numerator) == numerator, 'Numerator must be an integer'
+        assert int(k) == k, 'k must be an integer'
+        assert numerator < 2 ** k, 'Numerator must be less than 2^k'
 
     def get_unitary(self, params: RealVector = []) -> UnitaryMatrix:
         """Return the unitary for this gate, see :class:`Unitary` for more."""

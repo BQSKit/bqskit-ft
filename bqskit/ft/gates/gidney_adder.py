@@ -26,26 +26,28 @@ class GidneyAdder(CircuitGate):
 
     """
 
-    def __init__(self, register_size: int) -> None:
+    def __init__(self, register_size: int, add_reset: bool = True) -> None:
         """
 
         Args:
-            circuit (Circuit): The circuit to copy into gate format.
+            register_size (int) : The size of the inputs A and B passed to the
+            adder. The total circuit will have width 3*(`register_size`) - 1.
+            Inputs A and B will be of size `register_size` and there will be an
+            addition `register_size` - 1 ancilla for T gates.
 
-            move (bool): If true, the constructor will not copy the circuit.
-                This should only be used when you are sure `circuit` will no
-                longer be used on caller side. If unsure use the default.
-                (Default: False)
+            add_reset (bool): Whether or not to add the reset gate to the
+            circuit. A reset gate is useful to pass to mappers, but will throw
+            an error for unitary-based subroutines.
         """
 
-        self._circuit = self.generate_circuit(register_size)
+        self._circuit = self.generate_circuit(register_size, add_reset)
         self._num_qudits = 3 * register_size - 1
         assert self._circuit.num_qudits == self._num_qudits
         self._radixes = self._circuit.radixes
         self._num_params = self._circuit.num_params
         self._name = 'GidneyAdder(%s)' % str(register_size)
 
-    def generate_circuit(self, n: int) -> Circuit:
+    def generate_circuit(self, n: int, add_reset: bool = True) -> Circuit:
         '''
         Generate an adder from logical ands. Uses 3n - 1 qubits.
 
@@ -54,7 +56,8 @@ class GidneyAdder(CircuitGate):
         c = Circuit(3 * n - 1)
         # Initialize all ancilla in T state
         for i in range(2 * n, 3 * n - 1):
-            c.append_gate(Reset(), [i])
+            if add_reset:
+                c.append_gate(Reset(), [i])
             c.append_gate(HGate(), [i])
             c.append_gate(TGate(), [i])
 

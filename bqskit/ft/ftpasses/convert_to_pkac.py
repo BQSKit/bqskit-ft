@@ -22,8 +22,20 @@ class ConvertToPKAC(BasePass):
     right now.
     '''
 
-    def __init__(self, k: int = 3) -> None:
+    def __init__(self, k: int = 3, add_measurements: bool = True) -> None:
+        '''
+
+        Args:
+            k (int): Will be the register size for the Adder used to perform
+            RZ gates. Can perform rotation multiples of 2*pi/(2 ** k). If k=3,
+            can perform T gates.
+
+            add_measurements (bool): Whether or not to add Measurements and
+            Resets to the circuit. This is useful for mappers, but not for
+            unitary-based subroutines.
+        '''
         self.k = k
+        self.add_measurements = add_measurements
 
     def calculate_cnot_circuit(self, numerator: int) -> Circuit:
         '''
@@ -81,12 +93,13 @@ class ConvertToPKAC(BasePass):
         new_circ.append_circuit(QFTGadget.generate(self.k), input_b_qubits)
 
         # Initialize ancilla qubits with measurements
-        for q in ancilla_qubits:
-            new_circ.append_gate(
-                MeasurementPlaceholder(
-                    [('a', 1)], {q: ('a', 0)},
-                ), [q],
-            )
+        if self.add_measurements:
+            for q in ancilla_qubits:
+                new_circ.append_gate(
+                    MeasurementPlaceholder(
+                        [('a', 1)], {q: ('a', 0)},
+                    ), [q],
+                )
 
         for op in circuit.operations():
             if isinstance(op.gate, FractionalRZGate):
@@ -98,7 +111,7 @@ class ConvertToPKAC(BasePass):
 
                 # Apply adder on A, B, and ancilla
                 new_circ.append_gate(
-                    GidneyAdder(self.k),
+                    GidneyAdder(self.k, add_reset=self.add_measurements),
                     (
                         input_a_qubits + input_b_qubits
                         + ancilla_qubits

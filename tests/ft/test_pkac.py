@@ -69,7 +69,10 @@ class TestCompileDefaults:
         c.append_circuit(QFTGadget.generate(n), input_b)
         # Apply an adder to add the inputs
         # c.append_gate(generate_adder(n), list(range(n, 3 * n)))
-        c.append_gate(GidneyAdder(n), input_a + input_b + ancilla)
+        c.append_gate(
+            GidneyAdder(n, add_reset=False),
+            input_a + input_b + ancilla,
+        )
 
         for i in range(n):
             # Apply CNOT onto bottom bit of the input and the first ancilla
@@ -96,7 +99,10 @@ class TestCompileDefaults:
                 if (b >> j) & 1:
                     circuit.append_gate(XGate(), [2 * N - 1 - j])
 
-            circuit.append_gate(GidneyAdder(N), list(range(3 * N - 1)))
+            circuit.append_gate(
+                GidneyAdder(N, add_reset=False),
+                list(range(3 * N - 1)),
+            )
 
             input = StateVector.zero(3 * N - 1)
             output = circuit.get_statevector(input)
@@ -207,7 +213,7 @@ class TestCompileDefaults:
 
         # Now, convert to PKAC
         workflow = [
-            ConvertToPKAC(K),
+            ConvertToPKAC(K, add_measurements=False),
         ]
 
         with Compiler() as compiler:

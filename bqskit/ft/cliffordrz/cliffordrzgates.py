@@ -3,6 +3,7 @@ from __future__ import annotations
 from bqskit.ir.gates.constant.cx import CNOTGate
 from bqskit.ir.gates.constant.cz import CZGate
 from bqskit.ir.gates.constant.h import HGate
+from bqskit.ir.gates.constant.identity import IdentityGate
 from bqskit.ir.gates.constant.s import SGate
 from bqskit.ir.gates.constant.sdg import SdgGate
 from bqskit.ir.gates.constant.swap import SwapGate
@@ -26,6 +27,7 @@ clifford_gates = [
     XGate(),
     YGate(),
     ZGate(),
+    IdentityGate(),
 ]
 
 rz_gates = [RZGate()]

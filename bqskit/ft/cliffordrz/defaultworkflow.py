@@ -107,20 +107,20 @@ def build_cliffordrz_workflow(
     passes = [SetRandomSeedPass(seed)] if seed is not None else []
     if circuit_target:
         passes += [UnfoldPass()]
-        passes += build_multi_qudit_retarget_workflow(
-            optimization_level=optimization_level,
-            synthesis_epsilon=synthesis_epsilon,
-            max_synthesis_size=max_synthesis_size,
-            error_threshold=error_threshold,
-            error_sim_size=error_sim_size,
-        )
+        # passes += build_multi_qudit_retarget_workflow(
+        #     optimization_level=optimization_level,
+        #     synthesis_epsilon=synthesis_epsilon,
+        #     max_synthesis_size=max_synthesis_size,
+        #     error_threshold=error_threshold,
+        #     error_sim_size=error_sim_size,
+        # )
         passes += [UnfoldPass()]
         passes += [QuickPartitioner(block_size=max_synthesis_size)]
 
-    if not circuit_target:
-        passes += build_search_synthesis_workflow(
-            optimization_level, synthesis_epsilon,
-        )
+    # if not circuit_target:
+    #     passes += build_search_synthesis_workflow(
+    #         optimization_level, synthesis_epsilon,
+    #     )
 
     zxzxz = ForEachBlockPass(
         [ZXZXZDecomposition()], collection_filter=single_qudit_u2_or_u3,

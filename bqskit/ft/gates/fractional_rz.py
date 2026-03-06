@@ -3,6 +3,10 @@ from __future__ import annotations
 
 import numpy as np
 
+from bqskit.ir.circuit import Circuit
+from bqskit.ir.gates.constant.s import SGate
+from bqskit.ir.gates.constant.t import TGate
+from bqskit.ir.gates.constant.z import ZGate
 from bqskit.ir.gates.constantgate import ConstantGate
 from bqskit.ir.gates.qubitgate import QubitGate
 from bqskit.qis.unitary.unitary import RealVector
@@ -42,3 +46,23 @@ class FractionalRZGate(ConstantGate, QubitGate):
                 [0, pexp],
             ],
         )
+    
+    @staticmethod
+    def get_circuit(numerator: int, k: int) -> Circuit:
+        """Return a circuit implementing this gate."""
+        circ = Circuit(1)
+        if k > 3:
+            circ.append_gate(FractionalRZGate(numerator, k), [0])
+        else:
+            # 2p * num / 8
+            pi_angle = (2 * numerator / (2 ** k)) % 2
+            # Fix angle between 0 and 2pi
+            while pi_angle > 1: # pi rotations
+                pi_angle -= 1
+                circ.append_gate(ZGate(), [0])
+            while pi_angle > 0.5: # pi/2 rotations
+                pi_angle -= 0.5
+                circ.append_gate(SGate(), [0])
+            if pi_angle > 0: # pi/4 rotations
+                circ.append_gate(TGate(), [0])
+        return circ

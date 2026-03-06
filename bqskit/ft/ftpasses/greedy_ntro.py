@@ -8,9 +8,13 @@ from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.passdata import PassData
 from bqskit.compiler.gateset import GateSet
 from bqskit.ir.circuit import Circuit, CircuitPoint
+from bqskit.ir.gates.constant.cx import CNOTGate
+from bqskit.ir.gates.constant.t import TGate
+from bqskit.ir.gates.constant.tdg import TdgGate
 from bqskit.ir.gates.parameterized.rz import RZGate
 
 from bqskit.ir.opt.cost.functions import HilbertSchmidtCostGenerator
+from bqskit.qis.unitary.unitarymatrix import UnitaryMatrix
 from ntro.tcount import MatrixDistanceCostGenerator
 from bqskit.ir.opt.cost.generator import CostFunctionGenerator
 
@@ -89,14 +93,10 @@ class GreedyNTROPass(BasePass):
         assert False, f"Was not able to replace gate {circuit.gate_counts}, {ind}, {n}, {diffs}"
 
 
-    async def greedy_search(self, circuit: Circuit) -> Circuit:
+    async def greedy_search(self, circuit: Circuit, 
+                            target: UnitaryMatrix) -> Circuit:
 
         best_circuit = circuit.copy()
-        target = circuit.get_unitary()
-        # for i in range(circuit.count(RZGate())):
-        #     # Start with different ones fixed
-        #     first_candidate = self.fix_closest_angle(circuit, i)
-        #     candidates = [(first_candidate, circuit, 0)]
 
         candidate = self.fix_closest_angle(circuit, 0)
         rz_ind = 0
@@ -120,22 +120,72 @@ class GreedyNTROPass(BasePass):
                 candidate = self.fix_closest_angle(fallback, rz_ind)
                     
         return best_circuit
-                    
+
+    def choose_best_circuit(self, circuits: list[Circuit], target: UnitaryMatrix) -> Circuit:
+        '''
+        Give each circuit a score in terms of resources:
+
+        In general, we will do the following cost function:
+
+        Ts = 1
+        RZs = -1 * log10(self.success_threshold) * 10
+
+        Fractional RZs =  4*k -4 
+
+        (TODO: Consider CNOT cost as well)
+        '''
+
+        def cost_fn(circ: Circuit) -> float:
+            num_t = circ.count(TGate()) + circ.count(TdgGate())
+            num_rz = circ.count(RZGate())
+            frac_z_cost = 0
+            for op in circ.operations():
+                if isinstance(op.gate, FractionalRZGate):
+                    if op.gate.k == 3:
+                        frac_z_cost += 1
+                    else:
+                        frac_z_cost += 4 * op.gate.k - 4
+
+            rz_cost_per_gate = np.ceil(-1 * np.log10(self.success_threshold)) * 10
+            return num_t + num_rz * rz_cost_per_gate + frac_z_cost
+
+        best_circuit = min(circuits, key=cost_fn)
+        return best_circuit       
         
     async def run(self, circuit: Circuit, data: PassData) -> None:
+        # circuit_gates = circuit.gate_set
+        # # Assert all gates in circuit_gates are in clifford_rz_gates
+        # cliff_rz_gates = GateSet(clifford_rz_gates)
+        # assert circuit_gates.issubset(cliff_rz_gates)
+        prev_circs: list[Circuit] = data.get('prev_ntro_circs', [circuit.copy()])
 
-        circuit_gates = circuit.gate_set
+        # orig_rzs = circuit.count(RZGate())
+        # if orig_rzs == 0:
+        #     # No need to search
+        #     return
 
-        # Assert all gates in circuit_gates are in clifford_rz_gates
-        cliff_rz_gates = GateSet(clifford_rz_gates)
+        # rz_counts = [circ.count(RZGate()) for circ in prev_circs]
 
-        assert circuit_gates.issubset(cliff_rz_gates)
+        # print("RZ Counts: ", rz_counts, flush=True)
+        
+        new_circs = await get_runtime().map(self.greedy_search,
+                                            prev_circs, 
+                                            target=data.target)
+        
+        best_circ = self.choose_best_circuit(new_circs, data.target)
 
-        new_circ = await self.greedy_search(circuit)
-
-        circuit.become(new_circ)
-
-
+        prev_circs.append(best_circ)
+        data['prev_ntro_circs'] = prev_circs
+        circuit.become(best_circ)
 
 
-
+class ReplaceFractionalRZWithT(BasePass):
+    async def run(self, circuit: Circuit, data: PassData) -> None:
+        for cycle, op in circuit.operations_with_cycles():
+            if isinstance(op.gate, FractionalRZGate) and op.gate.k <= 3:
+                circuit.replace_with_circuit(
+                    CircuitPoint(cycle, op.location[0]),
+                    FractionalRZGate.get_circuit(op.gate.numerator, op.gate.k),
+                    as_circuit_gate=True
+                )
+        circuit.unfold_all()

@@ -11,6 +11,7 @@ from bqskit.ft.rules.isolate_rz import IsolateRZGatePass
 from bqskit.ft.rules.replacement import construct_unitary_match_rule
 from bqskit.ft.rules.replacement import ReplacementRule
 from bqskit.ft.rules.xytoz import XYtoZRotation
+from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates.constant.h import HGate
 from bqskit.ir.gates.constant.identity import IdentityGate
 from bqskit.ir.gates.constant.s import SGate
@@ -52,6 +53,9 @@ tdg_repl_rule = construct_unitary_match_rule(TdgGate().get_unitary())
 def single_qudit_filter(op: Operation) -> bool:
     return op.num_qudits == 1 and op.num_params > 0
 
+def param_filter(new: Circuit, old: Operation) -> bool:
+    """Always replace."""
+    return new.num_params <= old.num_params
 
 def single_qudit_u2_or_u3(op: Operation) -> bool:
     return op.num_qudits == 1 and op.num_params > 1
@@ -76,11 +80,15 @@ def rz_decomposition_passes(precision: int) -> list[BasePass]:
 
 
 def clifford_replace() -> BasePass:
+    hsh_circ = Circuit(1)
+    hsh_circ.append_gate(HGate(), [0])
+    hsh_circ.append_gate(SGate(), [0])
+    hsh_circ.append_gate(HGate(), [0])
     return ForEachBlockPass(
         [
             ReplacementRule(h_repl_rule, HGate()),  # type: ignore
             ReplacementRule(x_repl_rule, XGate()),  # type: ignore
-            ReplacementRule(sqrtx_repl_rule, SqrtXGate()),  # type: ignore
+            ReplacementRule(sqrtx_repl_rule, hsh_circ),  # type: ignore
             ReplacementRule(y_repl_rule, YGate()),  # type: ignore
             ReplacementRule(z_repl_rule, ZGate()),  # type: ignore
             ReplacementRule(s_repl_rule, SGate()),  # type: ignore
@@ -123,10 +131,10 @@ def build_cliffordrz_workflow(
     #     )
 
     zxzxz = ForEachBlockPass(
-        [ZXZXZDecomposition()], collection_filter=single_qudit_u2_or_u3,
+        [ZXZXZDecomposition()], collection_filter=single_qudit_u2_or_u3
     )
     xytoz = ForEachBlockPass(
-        [XYtoZRotation()], collection_filter=single_qudit_rx_or_ry,
+        [XYtoZRotation()], collection_filter=single_qudit_rx_or_ry
     )
 
     passes += [

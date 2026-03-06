@@ -105,60 +105,60 @@ def build_cliffordt_workflow(
 ) -> list[BasePass]:
     """Build a workflow for Clifford+T compilation."""
     passes = [SetRandomSeedPass(seed)] if seed is not None else []
-    if circuit_target:
-        passes += [UnfoldPass()]
-        passes += build_multi_qudit_retarget_workflow(
-            optimization_level=optimization_level,
-            synthesis_epsilon=synthesis_epsilon,
-            max_synthesis_size=max_synthesis_size,
-            error_threshold=error_threshold,
-            error_sim_size=error_sim_size,
-        )
-        passes += [UnfoldPass()]
-        passes += [QuickPartitioner(block_size=max_synthesis_size)]
+    # if circuit_target:
+    #     passes += [UnfoldPass()]
+    #     passes += build_multi_qudit_retarget_workflow(
+    #         optimization_level=optimization_level,
+    #         synthesis_epsilon=synthesis_epsilon,
+    #         max_synthesis_size=max_synthesis_size,
+    #         error_threshold=error_threshold,
+    #         error_sim_size=error_sim_size,
+    #     )
+    #     passes += [UnfoldPass()]
+    #     passes += [QuickPartitioner(block_size=max_synthesis_size)]
 
-    if not circuit_target:
-        passes += build_search_synthesis_workflow(
-            optimization_level, synthesis_epsilon,
-        )
+    # if not circuit_target:
+    #     passes += build_search_synthesis_workflow(
+    #         optimization_level, synthesis_epsilon,
+    #     )
 
-    zxzxz = ForEachBlockPass(
-        [ZXZXZDecomposition()], collection_filter=single_qudit_u2_or_u3,
-    )
-    xytoz = ForEachBlockPass(
-        [XYtoZRotation()], collection_filter=single_qudit_rx_or_ry,
-    )
+    # zxzxz = ForEachBlockPass(
+    #     [ZXZXZDecomposition()], collection_filter=single_qudit_u2_or_u3,
+    # )
+    # xytoz = ForEachBlockPass(
+    #     [XYtoZRotation()], collection_filter=single_qudit_rx_or_ry,
+    # )
 
     passes += [
         # --------------------------------------------------
         # Replace single qudit Cliffords where possible.
         # --------------------------------------------------
-        GroupSingleQuditGatePass(),
-        clifford_replace(),
-        UnfoldPass(),
+        # GroupSingleQuditGatePass(),
+        # clifford_replace(),
+        # UnfoldPass(),
         # --------------------------------------------------
         # Convert RX and RY gates to RZ gates.
         # --------------------------------------------------
-        xytoz,
+        # xytoz,
         # --------------------------------------------------
         # Replace Z, S, Sdg, T, and Tdg gates when possible.
         # --------------------------------------------------
-        RoundToDiscreteZPass(synthesis_epsilon),
+        # RoundToDiscreteZPass(synthesis_epsilon),
         # --------------------------------------------------
         # Do quick scan to remove gates.
         # --------------------------------------------------
-        QuickPartitioner(2),
-        ForEachBlockPass([ScanningGateRemovalPass()]),
-        UnfoldPass(),
+        # QuickPartitioner(2),
+        # ForEachBlockPass([ScanningGateRemovalPass()]),
+        # UnfoldPass(),
         # --------------------------------------------------
         # Do quick scan to remove gates.
         # --------------------------------------------------
         # GroupSingleQuditGatePass(),
-        zxzxz,
-        clifford_replace(),
-        UnfoldPass(),
-        RoundToDiscreteZPass(synthesis_epsilon),
-        UnfoldPass(),
+        # zxzxz,
+        # clifford_replace(),
+        # UnfoldPass(),
+        # RoundToDiscreteZPass(synthesis_epsilon),
+        # UnfoldPass(),
     ]
 
     # Decompose RZ gates into Clifford+T

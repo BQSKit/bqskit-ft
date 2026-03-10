@@ -27,11 +27,10 @@ class FractionalRZGate(ConstantGate, QubitGate):
     _qasm_name = 'fractional_rz'
 
     def __init__(self, numerator: int = 0, k: int = 0) -> None:
-        self.numerator = numerator
+        self.numerator = numerator % (2 ** k)
         self.k = k
         assert int(numerator) == numerator, 'Numerator must be an integer'
         assert int(k) == k, 'k must be an integer'
-        assert numerator < 2 ** k, 'Numerator must be less than 2^k'
 
     def get_unitary(self, params: RealVector = []) -> UnitaryMatrix:
         """Return the unitary for this gate, see :class:`Unitary` for more."""
@@ -57,12 +56,13 @@ class FractionalRZGate(ConstantGate, QubitGate):
             # 2p * num / 8
             pi_angle = (2 * numerator / (2 ** k)) % 2
             # Fix angle between 0 and 2pi
-            while pi_angle > 1: # pi rotations
+            while pi_angle >= 1: # pi rotations
                 pi_angle -= 1
                 circ.append_gate(ZGate(), [0])
-            while pi_angle > 0.5: # pi/2 rotations
+            while pi_angle >= 0.5: # pi/2 rotations
                 pi_angle -= 0.5
                 circ.append_gate(SGate(), [0])
             if pi_angle > 0: # pi/4 rotations
                 circ.append_gate(TGate(), [0])
+                pi_angle -= 0.25
         return circ

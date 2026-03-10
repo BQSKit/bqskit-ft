@@ -1,17 +1,60 @@
 from __future__ import annotations
+import numpy as np
 
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.passdata import PassData
 from bqskit.ft.gadgets.qft import QFTGadget
 from bqskit.ft.gates.fractional_rz import FractionalRZGate
 from bqskit.ft.gates.gidney_adder import GidneyAdder
+from bqskit.ft.gates.logical_and import LogicalAndDgGate, LogicalAndGate
 from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates.constant.cx import CNOTGate
+from bqskit.ir.gates.constant.h import HGate
 from bqskit.ir.gates.constant.t import TGate
 from bqskit.ir.gates.constant.x import XGate
+from bqskit.ir.gates.parameterized.rz import RZGate
 from bqskit.ir.gates.measure import MeasurementPlaceholder
 from bqskit.ir.point import CircuitPoint
 
+
+def sqrt_circuit() -> Circuit:
+    '''
+    Circuit to apply a sqrt(T) gate using a cataylzed state. This is used in the
+    case where we want to perform RZ rotations with k = 4, but we don't want
+    to use the full PKAC construction since it is expensive and we only need
+    one rotation.
+
+    The circuit takes in the target qubit, an second qubit to store a second
+    sqrt(T) state, and a third qubit which is the catalyzed sqrt(T) state.
+    The last qubit is an ancilla to use in the logical AND.
+
+    TODO: Maybe we can use a 3-qubit circuit instead (no qubit 1)
+    '''
+    circ = Circuit(4)
+
+
+    # Initialize ancilla in T state
+    circ.append_gate(HGate(), [3])
+    circ.append_gate(TGate(), [3])
+
+    # Run circuit
+    circ.append_gate(XGate(), [2])
+    circ.append_gate(CNOTGate(), [0, 1])
+    circ.append_gate(CNOTGate(), [0, 2])
+    circ.append_gate(LogicalAndGate(), [1, 2, 3])
+
+
+    circ.append_gate(CNOTGate(), [0, 3])
+    circ.append_gate(TGate(), [3])
+    circ.append_gate(CNOTGate(), [0, 3])
+
+    circ.append_gate(LogicalAndDgGate(), [1, 2, 3])
+
+    circ.append_gate(CNOTGate(), [1, 2])
+    circ.append_gate(CNOTGate(), [0, 1])
+    circ.append_gate(CNOTGate(), [0, 2])
+    circ.append_gate(XGate(), [2])
+    return circ
 
 class ConvertToPKAC(BasePass):
     '''
@@ -24,7 +67,9 @@ class ConvertToPKAC(BasePass):
     right now.
     '''
 
-    def __init__(self, ks: list[int] = [3], add_measurements: bool = True) -> None:
+    def __init__(self, ks: list[int] = [3], 
+                 add_measurements: bool = True,
+                 use_catalyzed_sqrt_t: bool = True) -> None:
         '''
 
         Args:
@@ -35,9 +80,14 @@ class ConvertToPKAC(BasePass):
             add_measurements (bool): Whether or not to add Measurements and
             Resets to the circuit. This is useful for mappers, but not for
             unitary-based subroutines.
+
+            use_catalyzed_sqrt_t (bool): For k = 4, we can use a catalyzed 
+            sqrt(T) ancilla which requires 1 extra persistent ancilla. 
+            However, we save on space and time as compared to the full PKAC.
         '''
         self.ks = ks
         self.add_measurements = add_measurements
+        self.use_catalyzed_sqrt_t = use_catalyzed_sqrt_t
 
     def calculate_cnot_circuit(self, numerator: int, k: int) -> Circuit:
         '''
@@ -90,46 +140,119 @@ class ConvertToPKAC(BasePass):
         minimize them).
         '''
         for cycle, op in circuit.operations_with_cycles():
-            if isinstance(op.gate, FractionalRZGate) and op.gate.k == 3:
+            if isinstance(op.gate, FractionalRZGate) and op.gate.k <= 3:
+                # Replace with T gate TODO: fix with actual circuit
+                circuit.replace_with_circuit(
+                    CircuitPoint(cycle, op.location[0]),
+                    FractionalRZGate.get_circuit(op.gate.numerator, op.gate.k),
+                    as_circuit_gate=True
+                )
+
+        circuit.unfold_all()
+
+    def convert_normal_rz(self, circuit: Circuit) -> None:
+        '''
+        Convert all FractionalRZGates with k = 3 to T gates. This is just a
+        special case of the general conversion, but it is useful to do this
+        first since it allows us to use the T gate count as a proxy for how
+        well the conversion worked (since T gates are expensive and we want to
+        minimize them).
+        '''
+        for cycle, op in circuit.operations_with_cycles():
+            if isinstance(op.gate, FractionalRZGate):
                 # Replace with T gate TODO: fix with actual circuit
                 circuit.replace_gate(
                     CircuitPoint(cycle, op.location[0]),
-                    TGate(),
-                    op.location
+                    RZGate(),
+                    op.location,
+                    [2 * np.pi * op.gate.numerator/(2 ** op.gate.k)]
                 )
-
 
     async def run(self, circuit: Circuit, data: PassData) -> None:
         # New circuit size is num_qudits + k (input a) + sum(qft_state_sizes) input bs + k - 1 ancillas
 
         # We need to first convert all FractionalRZGates with k = 3
         # to circuits with T gates
-
+        print("Ks before conversion: ", self.ks)
         if 3 in self.ks:
             self.convert_k3_to_t(circuit)
             self.ks.remove(3)
             if len(self.ks) == 0:
                 return
+            
+        extra_qubits = 0
+        if 4 in self.ks and self.use_catalyzed_sqrt_t:
+            # The last (non-ancilla) qubit will hold a sqrt(T) state
+            # The other qubit will be storage for a second sqrt(T) state
+            extra_qubits += 2
+            self.ks.remove(4)
         
-        max_k = max(self.ks)
-        circuit_size = circuit.num_qudits + max_k + sum(self.ks) + max_k - 1
-        new_circ = Circuit(circuit_size)
-
         n = circuit.num_qudits
 
-        input_a_qubits = list(range(n, n + max_k))
-        all_input_q_qubits = []
-        start = n + max_k
-        for size in self.ks:
-            end = start + size
-            all_input_q_qubits.append(list(range(start, end)))
-            start = end
-        ancilla_qubits = list(range(start, circuit_size))
+        if len(self.ks) > 0:
+            # Yes PKAC circuit(s)
+            max_k = max(self.ks)
+            circuit_size = (circuit.num_qudits + max_k + sum(self.ks) 
+                            + extra_qubits + max_k - 1)
+        else:
+            if extra_qubits == 0:
+                 # No more decomps
+                self.convert_normal_rz(circuit)
+                return
+            # Require ancilla for logical AND
+            circuit_size = circuit.num_qudits + extra_qubits + 1
+            input_a_qubits = None
 
-        # Initialize input Bs in QFT state
-        for size, input_b_qubits in zip(self.ks, all_input_q_qubits):
-            new_circ.append_gate(XGate(), [input_b_qubits[-1]])
-            new_circ.append_circuit(QFTGadget.generate(size), input_b_qubits)
+        new_circ = Circuit(circuit_size)
+
+        # Register setup
+
+        # Circuit Qubits -  0 -> n
+        # Input A (length(k) if k > 5): n -> n + max_k
+        # Input Bs (length(ks[i]) for each k): n + max_k -> n + max_k + sum(ks)
+        # Extra qubits for catalyzed sqrt_t: n + max_k + sum(ks) -> n + max_k + sum(ks) 
+
+        next_qubit = n
+        input_a_qubits = None
+        all_input_b_qubits = None
+        ancilla_qubits = None
+
+        if len(self.ks) > 0:
+            input_a_qubits = list(range(n, n + max_k))
+            next_qubit += max_k
+            all_input_b_qubits = []
+            start = next_qubit
+
+            for size in self.ks:
+                end = start + size
+                input_b_qubits = list(range(start, end))
+                all_input_b_qubits.append(input_b_qubits)
+                # Initialize in QFT state
+                new_circ.append_gate(XGate(), [input_b_qubits[-1]])
+                new_circ.append_circuit(QFTGadget.generate(size), input_b_qubits)
+                start = end
+
+            next_qubit = start
+
+        if self.use_catalyzed_sqrt_t:
+            sqrt_t_qubit = next_qubit
+            extra_sqrt_t_storage = next_qubit + 1
+            # Initialize with sqrt(T) state -> Will be decomposed into HST later
+            new_circ.append_gate(HGate(), [sqrt_t_qubit])
+            new_circ.append_gate(RZGate(), (sqrt_t_qubit,), [np.pi / 8])
+            next_qubit += 2
+        else:
+            sqrt_t_qubit = None
+            extra_sqrt_t_storage = None
+
+        # Remaining qubits are ancilla qubits
+        ancilla_qubits = list(range(next_qubit, circuit_size))
+
+        print("Input A qubits: ", input_a_qubits)
+        print("Input B qubits(s): ", all_input_b_qubits)
+        print("Sqrt T Qubit: ", sqrt_t_qubit)
+        print("Extra sqrt_t_storage: ", extra_sqrt_t_storage)
+        print("Ancilla qubits: ", ancilla_qubits)
 
         # Initialize ancilla qubits with measurements
         if self.add_measurements:
@@ -141,13 +264,29 @@ class ConvertToPKAC(BasePass):
                 )
 
         for op in circuit.operations():
-            if isinstance(op.gate, FractionalRZGate):
+            if (isinstance(op.gate, FractionalRZGate) and op.gate.k == 4
+                and self.use_catalyzed_sqrt_t):
+                # Use cataylzed sqrt state
+                # If numerator is even, then do num /2 and k = 3 decomp
+                circ = FractionalRZGate.get_circuit(op.gate.numerator // 2, 3)
+                new_circ.append_circuit(circ, [op.location[0]], as_circuit_gate=False)
+                    
+                if op.gate.numerator % 2 == 1:
+                    # Apply sqrt(T) circuit
+                    new_circ.append_circuit(
+                        sqrt_circuit(),
+                        [op.location[0], extra_sqrt_t_storage, 
+                        sqrt_t_qubit, ancilla_qubits[0]],
+                        as_circuit_gate=False
+                    )
+
+            elif isinstance(op.gate, FractionalRZGate):
                 # Replace with adder circuit
                 q = op.location[0]
 
                 # Get correct k to use
                 qft_ind = self.ks.index(op.gate.k)
-                input_b_qubits = all_input_q_qubits[qft_ind]
+                input_b_qubits = all_input_b_qubits[qft_ind]
                 new_k = self.ks[qft_ind]
 
                 # Add a CNOT to LSB on input A
@@ -156,7 +295,7 @@ class ConvertToPKAC(BasePass):
 
                 new_circ.append_circuit(cnots, [q] + input_a_qubits[:new_k])
 
-                input_b = all_input_q_qubits[qft_ind]
+                input_b = all_input_b_qubits[qft_ind]
 
                 # Apply adder on A, B, and ancilla
                 new_circ.append_gate(
@@ -170,5 +309,4 @@ class ConvertToPKAC(BasePass):
                 new_circ.append_circuit(cnots, [q] + input_a_qubits[:new_k])
             else:
                 new_circ.append(op)
-
         circuit.become(new_circ)

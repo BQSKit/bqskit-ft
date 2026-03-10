@@ -167,13 +167,28 @@ class TestCompileDefaults:
 
         assert allclose(final_probs, expected_probs, atol=1e-6)
 
+    def test_fractional_rz_to_t_decomp(self) -> None:
+        # Test that the decomposition of FractionalRZGate with k = 3 is correct
+        N = 1
+        K = 3
+
+        for num in range(4 ** K):
+            gate = FractionalRZGate(num, K)
+            ang = 2 * num * pi / (2 ** K)
+            rz_gate = RZGate()
+            target = rz_gate.get_unitary([ang])
+            un_dist = target.get_distance_from(gate.get_unitary())
+            assert allclose(un_dist, 0, atol=1e-7)
+            frac_circ = gate.get_circuit(num, K)
+            circ_dist = target.get_distance_from(frac_circ.get_unitary())
+            assert allclose(circ_dist, 0, atol=1e-7)
+
     def test_pkac_decomposition(self) -> None:
         # Contstruct a circuit with random FractionalRZGates and then
         # apply the PKAC decomposition to it. Then verify that the output
         # state is the same as the original circuit.
-
         N = 3
-        K = 3
+        K = 4
         num_layers = 3
         rzs_per_layer = 2
 
@@ -186,7 +201,7 @@ class TestCompileDefaults:
             # Choose 3 random qubits and apply random Rzs to them
             rand_qubits = random.choice(N, size=rzs_per_layer, replace=False)
             for i, q in enumerate(rand_qubits):
-                num = random.randint(1, K)
+                num = random.randint(1, 2 ** K)
                 circ.append_gate(FractionalRZGate(num, K), [q])
 
             # Should do some kickbacks
@@ -213,12 +228,13 @@ class TestCompileDefaults:
 
         # Now, convert to PKAC
         workflow = [
-            ConvertToPKAC(K, add_measurements=False),
+            ConvertToPKAC(ks = [K], add_measurements=False, 
+                          use_catalyzed_sqrt_t=False),
         ]
 
         with Compiler() as compiler:
             pkac_circ = compiler.compile(circ, workflow=workflow)
-
+  
         # Calculate probabilities for PKAC circuit
         in_state = StateVector.zero(pkac_circ.num_qudits)
         pkac_out = pkac_circ.get_statevector(in_state)
@@ -259,3 +275,81 @@ class TestCompileDefaults:
         num_hs = final_circ.count(HGate())
 
         assert num_hs == expected_num_hs
+
+    def test_pkac_decomposition_cat_sqrt_t(self) -> None:
+        # Contstruct a circuit with random FractionalRZGates and then
+        # apply the PKAC decomposition to it. Then verify that the output
+        # state is the same as the original circuit.
+        N = 4
+        K = 4
+        num_layers = 3
+        rzs_per_layer = 2
+
+        circ = Circuit(N)
+
+        for i in range(N):
+            circ.append_gate(HGate(), [i])
+
+        for _ in range(num_layers):
+            # Choose 3 random qubits and apply random Rzs to them
+            rand_qubits = random.choice(N, size=rzs_per_layer, replace=False)
+            for i, q in enumerate(rand_qubits):
+                # num = random.randint(1, 2 ** K)
+                num = 3
+                # Reduce num 
+                actual_k = K
+                while num % 2 == 0 and actual_k > 0:
+                    num //= 2
+                    actual_k -= 1
+                circ.append_gate(FractionalRZGate(num, actual_k), [q])
+
+            # Should do some kickbacks
+            for i in range(N - 1):
+                circ.append_gate(CNOTGate(), [i, i + 1])
+
+        for i in range(N):
+            circ.append_gate(HGate(), [i])
+
+        # Calculate probabilities for original circuit
+        in_state = StateVector.zero(N)
+        original_out = circ.get_statevector(in_state)
+        original_probs = original_out.get_probs()
+        expected_probs = []
+        for qubit_ind in range(N):
+            prob = sum(
+                prob for i, prob in enumerate(original_probs) if
+                (i & (1 << (N - 1 - qubit_ind))) != 0
+            )
+            expected_probs.append(prob)
+
+        # Now, convert to PKAC
+        workflow = [
+            ConvertToPKAC(ks = [3, 4], add_measurements=False, 
+                        use_catalyzed_sqrt_t=True),
+        ]
+
+        with Compiler() as compiler:
+            pkac_circ = compiler.compile(circ, workflow=workflow)
+
+        # Should use catalyzed sqrt_t instead of PKAC
+        assert pkac_circ.num_qudits <= (N + 3) # 3 ancilla for sqrt_t
+
+        print("Original circuit:", circ.num_qudits, circ.gate_counts)
+        print("PKAC circuit:", pkac_circ.num_qudits, pkac_circ.gate_counts)
+
+        # Calculate probabilities for PKAC circuit
+        in_state = StateVector.zero(pkac_circ.num_qudits)
+        pkac_out = pkac_circ.get_statevector(in_state)
+        pkac_probs = pkac_out.get_probs()
+        final_probs = []
+        for qubit_ind in range(N):
+            prob = sum(
+                prob for i, prob in enumerate(pkac_probs) if
+                (i & (1 << (pkac_circ.num_qudits - 1 - qubit_ind))) != 0
+            )
+            final_probs.append(prob)
+
+        print(final_probs)
+        print(expected_probs)
+
+        assert allclose(final_probs, expected_probs, atol=1e-6)

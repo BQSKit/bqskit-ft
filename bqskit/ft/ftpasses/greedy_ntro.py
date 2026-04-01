@@ -143,6 +143,8 @@ class GreedyNTROPass(BasePass):
                 if isinstance(op.gate, FractionalRZGate):
                     if op.gate.k == 3:
                         frac_z_cost += 1
+                    elif op.gate.k == 4:
+                        frac_z_cost += 4
                     else:
                         frac_z_cost += 4 * op.gate.k - 4
 
@@ -174,7 +176,7 @@ class GreedyNTROPass(BasePass):
         
         best_circ = self.choose_best_circuit(new_circs, data.target)
 
-        prev_circs.append(best_circ)
+        prev_circs.extend(new_circs)
         data['prev_ntro_circs'] = prev_circs
         circuit.become(best_circ)
 

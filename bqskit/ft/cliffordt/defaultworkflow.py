@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import log10
+from math import ceil, log10
 
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.compile import build_multi_qudit_retarget_workflow
@@ -133,9 +133,9 @@ def build_cliffordt_workflow(
         # --------------------------------------------------
         # Replace single qudit Cliffords where possible.
         # --------------------------------------------------
-        # GroupSingleQuditGatePass(),
-        # clifford_replace(),
-        # UnfoldPass(),
+        GroupSingleQuditGatePass(),
+        clifford_replace(),
+        UnfoldPass(),
         # --------------------------------------------------
         # Convert RX and RY gates to RZ gates.
         # --------------------------------------------------
@@ -143,7 +143,7 @@ def build_cliffordt_workflow(
         # --------------------------------------------------
         # Replace Z, S, Sdg, T, and Tdg gates when possible.
         # --------------------------------------------------
-        # RoundToDiscreteZPass(synthesis_epsilon),
+        RoundToDiscreteZPass(synthesis_epsilon),
         # --------------------------------------------------
         # Do quick scan to remove gates.
         # --------------------------------------------------
@@ -154,16 +154,16 @@ def build_cliffordt_workflow(
         # Do quick scan to remove gates.
         # --------------------------------------------------
         # GroupSingleQuditGatePass(),
-        # zxzxz,
+        # # zxzxz,
         # clifford_replace(),
         # UnfoldPass(),
         # RoundToDiscreteZPass(synthesis_epsilon),
-        # UnfoldPass(),
+        UnfoldPass(),
     ]
 
     # Decompose RZ gates into Clifford+T
     if decompose_rz:
-        precision = int(log10(1 / synthesis_epsilon)) + 2
+        precision = int(ceil(log10(1 / synthesis_epsilon)))
         passes += rz_decomposition_passes(precision)
 
     # Finalizing

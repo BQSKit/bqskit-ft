@@ -9,7 +9,7 @@ from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates import CircuitGate
 from bqskit.ir.gates.constant.cz import CZGate
 from bqskit.ir.gates.constant.h import HGate
-from bqskit.ir.gates.measure import MeasurementPlaceholder
+from bqskit.ir.gates.measure import MidCircuitMeasurement
 from bqskit.ir.operation import Operation
 from bqskit.ir.point import CircuitPoint
 
@@ -30,7 +30,7 @@ class PKACtoGatesPass(BasePass):
         base_log_and_circ = Circuit(3)
         base_log_and_circ.append_gate(HGate(), [2])
         base_log_and_circ.append_gate(
-            MeasurementPlaceholder([('a', 1)], {2: ('a', 0)}), [2],
+            MidCircuitMeasurement('a'), [2],
         )
 
         # Now, we should replace all LogicalAndDgs with the measure and fixup

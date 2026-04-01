@@ -11,9 +11,11 @@ from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates.constant.cx import CNOTGate
 from bqskit.ir.gates.constant.h import HGate
 from bqskit.ir.gates.constant.t import TGate
+from bqskit.ir.gates.constant.tdg import TdgGate
+from bqskit.ir.gates.constant.tdg import TdgGate
 from bqskit.ir.gates.constant.x import XGate
 from bqskit.ir.gates.parameterized.rz import RZGate
-from bqskit.ir.gates.measure import MeasurementPlaceholder
+from bqskit.ir.gates.measure import MidCircuitMeasurement
 from bqskit.ir.point import CircuitPoint
 
 
@@ -150,7 +152,8 @@ class ConvertToPKAC(BasePass):
 
         circuit.unfold_all()
 
-    def convert_normal_rz(self, circuit: Circuit) -> None:
+    @staticmethod
+    def convert_normal_rz(circuit: Circuit, skip_ks: list[int]) -> None:
         '''
         Convert all FractionalRZGates with k = 3 to T gates. This is just a
         special case of the general conversion, but it is useful to do this
@@ -159,7 +162,7 @@ class ConvertToPKAC(BasePass):
         minimize them).
         '''
         for cycle, op in circuit.operations_with_cycles():
-            if isinstance(op.gate, FractionalRZGate):
+            if isinstance(op.gate, FractionalRZGate) and op.gate.k not in skip_ks:
                 # Replace with T gate TODO: fix with actual circuit
                 circuit.replace_gate(
                     CircuitPoint(cycle, op.location[0]),
@@ -173,20 +176,26 @@ class ConvertToPKAC(BasePass):
 
         # We need to first convert all FractionalRZGates with k = 3
         # to circuits with T gates
-        print("Ks before conversion: ", self.ks)
+        ks_to_skip = []
         if 3 in self.ks:
             self.convert_k3_to_t(circuit)
             self.ks.remove(3)
-            if len(self.ks) == 0:
-                return
+            ks_to_skip.append(3)
             
         extra_qubits = 0
         if 4 in self.ks and self.use_catalyzed_sqrt_t:
             # The last (non-ancilla) qubit will hold a sqrt(T) state
             # The other qubit will be storage for a second sqrt(T) state
             extra_qubits += 2
-            self.ks.remove(4)
+            ks_to_skip.append(4)
         
+        # Now, convert all remaining FractionalRZGates with k not in self.ks
+        # to RZ gates
+        print("Skipping k values: ", ks_to_skip + self.ks, flush=True)
+        print(circuit.gate_counts, flush=True)
+        ConvertToPKAC.convert_normal_rz(circuit, skip_ks=self.ks + ks_to_skip)
+        print("After converting normal RZs: ", circuit.gate_counts, flush=True)
+
         n = circuit.num_qudits
 
         if len(self.ks) > 0:
@@ -197,7 +206,6 @@ class ConvertToPKAC(BasePass):
         else:
             if extra_qubits == 0:
                  # No more decomps
-                self.convert_normal_rz(circuit)
                 return
             # Require ancilla for logical AND
             circuit_size = circuit.num_qudits + extra_qubits + 1
@@ -247,20 +255,11 @@ class ConvertToPKAC(BasePass):
 
         # Remaining qubits are ancilla qubits
         ancilla_qubits = list(range(next_qubit, circuit_size))
-
-        print("Input A qubits: ", input_a_qubits)
-        print("Input B qubits(s): ", all_input_b_qubits)
-        print("Sqrt T Qubit: ", sqrt_t_qubit)
-        print("Extra sqrt_t_storage: ", extra_sqrt_t_storage)
-        print("Ancilla qubits: ", ancilla_qubits)
-
         # Initialize ancilla qubits with measurements
         if self.add_measurements:
             for q in ancilla_qubits:
                 new_circ.append_gate(
-                    MeasurementPlaceholder(
-                        [('a', 1)], {q: ('a', 0)},
-                    ), [q],
+                    MidCircuitMeasurement('a'), [q],
                 )
 
         for op in circuit.operations():

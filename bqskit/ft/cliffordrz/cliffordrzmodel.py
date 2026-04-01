@@ -23,6 +23,7 @@ class CliffordRZModel(FaultTolerantModel):
         clifford_gates: Sequence[Gate] = clifford_gates,
         non_clifford_gates: Sequence[Gate] = rz_gates + t_gates,
         radixes: Sequence[int] = [],
+        epsilon_per_gate: float = 1e-10,
     ) -> None:
         """
         Construct a FaultTolerantModel of an error corrected machine.
@@ -57,25 +58,29 @@ class CliffordRZModel(FaultTolerantModel):
         for opt_level in [1, 2, 3, 4]:
             register_workflow(
                 self,
-                build_circuit_workflow(opt_level, decompose_rz=False),
+                build_circuit_workflow(opt_level, decompose_rz=False,
+                                       synthesis_epsilon=epsilon_per_gate),
                 opt_level,
                 'circuit',
             )
             register_workflow(
                 self,
-                build_unitary_workflow(opt_level, decompose_rz=False),
+                build_unitary_workflow(opt_level, decompose_rz=False,
+                                       synthesis_epsilon=epsilon_per_gate),
                 opt_level,
                 'unitary',
             )
             register_workflow(
                 self,
-                build_statemap_workflow(opt_level, decompose_rz=False),
+                build_statemap_workflow(opt_level, decompose_rz=False,
+                                        synthesis_epsilon=epsilon_per_gate),
                 opt_level,
                 'statemap',
             )
             register_workflow(
                 self,
-                build_stateprep_workflow(opt_level, decompose_rz=False),
+                build_stateprep_workflow(opt_level, decompose_rz=False,
+                                         synthesis_epsilon=epsilon_per_gate),
                 opt_level,
                 'stateprep',
             )

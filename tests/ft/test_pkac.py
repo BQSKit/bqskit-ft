@@ -18,6 +18,9 @@ from bqskit.ir.gates import XGate
 from bqskit.ir.gates.constant.t import TGate
 from bqskit.ir.gates.constant.tdg import TdgGate
 from bqskit.ir.gates.parameterized.rz import RZGate
+from bqskit.ir.gates.measure import MidCircuitMeasurement
+from bqskit.ir.lang.qasm2.qasm2 import OPENQASM2Language
+from bqskit.passes.util.unfold import UnfoldPass
 from bqskit.qis.state.state import StateVector
 
 
@@ -281,31 +284,54 @@ class TestCompileDefaults:
         # apply the PKAC decomposition to it. Then verify that the output
         # state is the same as the original circuit.
         N = 4
-        K = 4
-        num_layers = 3
-        rzs_per_layer = 2
+        MAX_K = 5
+        num_layers = 6
+        rzs_per_layer = 3
 
         circ = Circuit(N)
 
         for i in range(N):
             circ.append_gate(HGate(), [i])
 
+        num_expected_ts = 0
+        num_expected_rzs = 1
+        num_expected_cnots = 0
+        num_expected_measurements = 0
+
+        k_counter = {}
+
         for _ in range(num_layers):
             # Choose 3 random qubits and apply random Rzs to them
             rand_qubits = random.choice(N, size=rzs_per_layer, replace=False)
             for i, q in enumerate(rand_qubits):
-                # num = random.randint(1, 2 ** K)
-                num = 3
-                # Reduce num 
-                actual_k = K
-                while num % 2 == 0 and actual_k > 0:
-                    num //= 2
-                    actual_k -= 1
+                actual_k = random.randint(3, MAX_K + 1)
+                # Set numerator as random odd number less than 2^k
+                num = random.randint(1, 2 ** (actual_k - 1), dtype=int)
+                if num % 2 == 0:
+                    num -= 1
+                if actual_k == 3:
+                    num_expected_ts += 1
+                elif actual_k == 4:
+                    # Catalyzed sqrt_t state
+                    num_expected_ts += 5
+                    num_expected_cnots += 13
+                    num_expected_measurements += 1
+                    ratio = 2 * num / (2 ** actual_k)
+                    ratio_after_s_gates = ratio % 0.5
+                    if ratio_after_s_gates > 0.25: # S(s) + T + sqrt(T)
+                        num_expected_ts += 1
+                else:
+                    # We will convert k greater than 4 back to rzs
+                    num_expected_rzs += 1
+
+                k_counter[actual_k] = k_counter.get(actual_k, 0) + 1
+                # num = 1
                 circ.append_gate(FractionalRZGate(num, actual_k), [q])
 
             # Should do some kickbacks
             for i in range(N - 1):
                 circ.append_gate(CNOTGate(), [i, i + 1])
+                num_expected_cnots += 1
 
         for i in range(N):
             circ.append_gate(HGate(), [i])
@@ -334,9 +360,6 @@ class TestCompileDefaults:
         # Should use catalyzed sqrt_t instead of PKAC
         assert pkac_circ.num_qudits <= (N + 3) # 3 ancilla for sqrt_t
 
-        print("Original circuit:", circ.num_qudits, circ.gate_counts)
-        print("PKAC circuit:", pkac_circ.num_qudits, pkac_circ.gate_counts)
-
         # Calculate probabilities for PKAC circuit
         in_state = StateVector.zero(pkac_circ.num_qudits)
         pkac_out = pkac_circ.get_statevector(in_state)
@@ -349,7 +372,100 @@ class TestCompileDefaults:
             )
             final_probs.append(prob)
 
-        print(final_probs)
-        print(expected_probs)
-
         assert allclose(final_probs, expected_probs, atol=1e-6)
+
+        # Now convert Down to gataes
+
+        workflow = [
+            PKACtoGatesPass(),
+        ]
+
+        with Compiler() as compiler:
+            final_circ = compiler.compile(pkac_circ, workflow=workflow)
+
+        t_count = final_circ.count(TGate()) + final_circ.count(TdgGate())
+        cnot_count = final_circ.count(CNOTGate())
+        rz_count = final_circ.count(RZGate())
+
+        num_measurements = 0
+
+        for op in final_circ:
+            if isinstance(op.gate, MidCircuitMeasurement):
+                num_measurements += 1
+
+        assert num_measurements == num_expected_measurements
+        assert t_count == num_expected_ts
+        assert cnot_count == num_expected_cnots
+        assert rz_count == num_expected_rzs
+
+
+    def test_pkac_sqrt_t_qasm(self) -> None:
+        # Test that the PKAC decomposition with catalyzed sqrt_t states can be
+        # correctly converted to and from qasm without losing the catalyzed
+        # sqrt_t information, which is important for ensuring that we can use
+        # this decomposition in the context of the PKAC protocol where we need
+        # to convert to and from qasm for the client-server communication.
+        N = 1
+        K = 4
+
+        # Contstruct a circuit with random FractionalRZGates and then
+        # apply the PKAC decomposition to it. Then verify that the output
+        # state is the same as the original circuit.
+        N = 3
+        MAX_K = 4
+        num_layers = 3
+        rzs_per_layer = 2
+
+        circ = Circuit(N)
+
+        for i in range(N):
+            circ.append_gate(HGate(), [i])
+
+        num_expected_measurements = 0
+
+        for _ in range(num_layers):
+            # Choose 3 random qubits and apply random Rzs to them
+            rand_qubits = random.choice(N, size=rzs_per_layer, replace=False)
+            for i, q in enumerate(rand_qubits):
+                actual_k = random.randint(3, MAX_K + 1)
+                # Set numerator as random odd number less than 2^k
+                num = random.randint(1, 2 ** actual_k, dtype=int)
+                if num % 2 == 0:
+                    num -= 1
+                circ.append_gate(FractionalRZGate(num, actual_k), [q])
+
+            # Should do some kickbacks
+            for i in range(N - 1):
+                circ.append_gate(CNOTGate(), [i, i + 1])
+                num_expected_cnots += 1
+
+        for i in range(N):
+            circ.append_gate(HGate(), [i])
+
+        workflow = [
+            ConvertToPKAC(ks = [3, 4], add_measurements=True, 
+                        use_catalyzed_sqrt_t=True),
+            UnfoldPass(),
+            PKACtoGatesPass(),
+        ]
+
+        with Compiler() as compiler:
+            final_circ = compiler.compile(circ, workflow=workflow)
+
+
+        for cycle, op in enumerate(final_circ):
+            if isinstance(op.gate, MidCircuitMeasurement):
+                num_expected_measurements += 1
+
+        # Get qasm
+        out_qasm = OPENQASM2Language().encode(final_circ)
+
+        # Assert that there is one classical register in the qasm
+        if num_expected_measurements > 0:
+            assert 'creg a[1];' in out_qasm
+            assert out_qasm.count('creg a[1];') == 1
+
+        # Assert that we measure on qubit N + 2 and no other qubits
+        measure_str = f'measure q[{N + 2}] -> a[0];'
+        assert out_qasm.count(measure_str) == num_expected_measurements
+        assert out_qasm.count('measure q[') == num_expected_measurements

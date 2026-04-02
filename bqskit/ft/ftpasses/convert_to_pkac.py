@@ -3,7 +3,7 @@ import numpy as np
 
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.passdata import PassData
-from bqskit.ft.gadgets.qft import QFTGadget
+from bqskit.ft.gadgets.phase_gradient import PhaseGradientGadget
 from bqskit.ft.gates.fractional_rz import FractionalRZGate
 from bqskit.ft.gates.gidney_adder import GidneyAdder
 from bqskit.ft.gates.logical_and import LogicalAndDgGate, LogicalAndGate
@@ -11,8 +11,6 @@ from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates.constant.cx import CNOTGate
 from bqskit.ir.gates.constant.h import HGate
 from bqskit.ir.gates.constant.t import TGate
-from bqskit.ir.gates.constant.tdg import TdgGate
-from bqskit.ir.gates.constant.tdg import TdgGate
 from bqskit.ir.gates.constant.x import XGate
 from bqskit.ir.gates.parameterized.rz import RZGate
 from bqskit.ir.gates.measure import MidCircuitMeasurement
@@ -69,7 +67,7 @@ class ConvertToPKAC(BasePass):
     right now.
     '''
 
-    def __init__(self, ks: list[int] = [3], 
+    def __init__(self, ks: list[int] = None, 
                  add_measurements: bool = True,
                  use_catalyzed_sqrt_t: bool = True) -> None:
         '''
@@ -177,10 +175,25 @@ class ConvertToPKAC(BasePass):
         # We need to first convert all FractionalRZGates with k = 3
         # to circuits with T gates
         ks_to_skip = []
-        if 3 in self.ks:
-            self.convert_k3_to_t(circuit)
-            self.ks.remove(3)
-            ks_to_skip.append(3)
+
+        if self.ks is None:
+            # Use 3, 4 (if catalyzed sqrt T), and max k
+            self.ks = [3]
+            max_k = 3
+            has_4 = False
+            for op in circuit.operations():
+                if isinstance(op.gate, FractionalRZGate):
+                    if op.gate.k == 4:
+                        has_4 = True
+                    if op.gate.k > max_k:
+                        max_k = op.gate.k
+            if has_4 and self.use_catalyzed_sqrt_t:
+                self.ks.append(4)
+            if max_k > max(self.ks):
+                self.ks.append(max_k)
+
+        self.convert_k3_to_t(circuit)
+        ks_to_skip.append(3)
             
         extra_qubits = 0
         if 4 in self.ks and self.use_catalyzed_sqrt_t:
@@ -188,6 +201,7 @@ class ConvertToPKAC(BasePass):
             # The other qubit will be storage for a second sqrt(T) state
             extra_qubits += 2
             ks_to_skip.append(4)
+            self.ks.remove(4)
         
         # Now, convert all remaining FractionalRZGates with k not in self.ks
         # to RZ gates
@@ -235,9 +249,8 @@ class ConvertToPKAC(BasePass):
                 end = start + size
                 input_b_qubits = list(range(start, end))
                 all_input_b_qubits.append(input_b_qubits)
-                # Initialize in QFT state
-                new_circ.append_gate(XGate(), [input_b_qubits[-1]])
-                new_circ.append_circuit(QFTGadget.generate(size), input_b_qubits)
+                # Initialize in Phase Gradient state
+                new_circ.append_circuit(PhaseGradientGadget.generate(size), input_b_qubits)
                 start = end
 
             next_qubit = start

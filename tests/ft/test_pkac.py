@@ -8,7 +8,7 @@ from numpy import random
 from bqskit.compiler.compiler import Compiler
 from bqskit.ft.ftpasses.convert_to_pkac import ConvertToPKAC
 from bqskit.ft.ftpasses.pkac_to_gates import PKACtoGatesPass
-from bqskit.ft.gadgets.qft import QFTGadget
+from bqskit.ft.gadgets.phase_gradient import PhaseGradientGadget
 from bqskit.ft.gates.fractional_rz import FractionalRZGate
 from bqskit.ft.gates.gidney_adder import GidneyAdder
 from bqskit.ir.circuit import Circuit
@@ -69,7 +69,7 @@ class TestCompileDefaults:
         # Generate QFT state for input b
         c.append_gate(XGate(), [input_b[-1]])
         # c.append_gate(generate_qft(n), list(range(2 * n, 3 * n)))
-        c.append_circuit(QFTGadget.generate(n), input_b)
+        c.append_circuit(PhaseGradientGadget.generate(n), input_b)
         # Apply an adder to add the inputs
         # c.append_gate(generate_adder(n), list(range(n, 3 * n)))
         c.append_gate(
@@ -141,32 +141,15 @@ class TestCompileDefaults:
 
         # Now calculate expected probabilities
         expected_probs = [0] * N
-        # We are doing a HZH circuit on qubit 0
-        single_in = StateVector.zero(1)
-        hzh_circ = Circuit(1)
-        hzh_circ.append_gate(HGate(), [0])
-        hzh_circ.append_gate(RZGate(), [0], [pi])
-        hzh_circ.append_gate(HGate(), [0])
-        probs = hzh_circ.get_statevector(single_in).get_probs()
-        expected_probs[0] = probs[1]  # Probability of qubit being 1
+        for i in range(N):
+            single_in = StateVector.zero(1)
+            hzh_circ = Circuit(1)
+            hzh_circ.append_gate(HGate(), [0])
+            hzh_circ.append_gate(RZGate(), [0], [pi / (2 ** i)])
+            hzh_circ.append_gate(HGate(), [0])
+            probs = hzh_circ.get_statevector(single_in).get_probs()
+            expected_probs[i] = probs[1]  # Probability of qubit being 1
 
-        # We are doing H Rz(pi/2) H on qubit 1
-        single_in = StateVector.zero(1)
-        hzh_circ = Circuit(1)
-        hzh_circ.append_gate(HGate(), [0])
-        hzh_circ.append_gate(RZGate(), [0], [pi / 2])
-        hzh_circ.append_gate(HGate(), [0])
-        probs = hzh_circ.get_statevector(single_in).get_probs()
-        expected_probs[1] = probs[1]  # Probability of qubit being 1
-
-        # We are doing H Rz(pi/4) H on qubit 2
-        single_in = StateVector.zero(1)
-        hzh_circ = Circuit(1)
-        hzh_circ.append_gate(HGate(), [0])
-        hzh_circ.append_gate(RZGate(), [0], [pi / 4])
-        hzh_circ.append_gate(HGate(), [0])
-        probs = hzh_circ.get_statevector(single_in).get_probs()
-        expected_probs[2] = probs[1]  # Probability of qubit being 1
 
         assert allclose(final_probs, expected_probs, atol=1e-6)
 

@@ -76,11 +76,11 @@ class GreedyNTROPass(BasePass):
         num = num % (2 ** self.k)
 
         # Now replace RZ gate at ind with Fractional
-        rz_ind = 0
+        cur_ind = 0
         new_circ = circuit.copy()
         for cycle, op in new_circ.operations_with_cycles():
             if isinstance(op.gate, RZGate):
-                if rz_ind == ind:
+                if cur_ind == ind:
                     new_circ.replace_gate(
                         CircuitPoint(cycle, op.location[0]),
                         FractionalRZGate(num, self.k),
@@ -88,8 +88,8 @@ class GreedyNTROPass(BasePass):
                     )
                     return new_circ
                 else:
-                    rz_ind += 1
-                
+                    cur_ind += 1
+
         assert False, f"Was not able to replace gate {circuit.gate_counts}, {ind}, {n}, {diffs}"
 
 

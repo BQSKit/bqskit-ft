@@ -102,6 +102,7 @@ def clifford_replace() -> BasePass:
             ReplacementRule(i_repl_rule, None),  # type: ignore
         ],
         collection_filter=single_qudit_filter,
+        # name="Clifford Replacement"
     )
 
 
@@ -127,7 +128,7 @@ def build_cliffordrz_workflow(
         #     error_sim_size=error_sim_size,
         # )
         passes += [UnfoldPass()]
-        passes += [QuickPartitioner(block_size=max_synthesis_size)]
+        # passes += [QuickPartitioner(block_size=max_synthesis_size)]
 
     # if not circuit_target:
     #     passes += build_search_synthesis_workflow(
@@ -135,14 +136,17 @@ def build_cliffordrz_workflow(
     #     )
 
     zxzxz = ForEachBlockPass(
-        [ZXZXZDecomposition()], collection_filter=single_qudit_u2_or_u3
+        [ZXZXZDecomposition()], collection_filter=single_qudit_u2_or_u3,
+        # name="ZXZXZ Decomposition"
     )
     xytoz = ForEachBlockPass(
-        [XYtoZRotation()], collection_filter=single_qudit_rx_or_ry
+        [XYtoZRotation()], collection_filter=single_qudit_rx_or_ry,
+        # name="XY to Z Replacement"
     )
 
     u1torz = ForEachBlockPass(
-        [U1ToRZPass()],
+        [U1ToRZPass()], collection_filter=single_qudit_u1,
+        # name="U1 to RZ Replacement"
     )
 
     passes += [
@@ -152,6 +156,7 @@ def build_cliffordrz_workflow(
         # --------------------------------------------------
         GroupSingleQuditGatePass(),
         clifford_replace(),
+        UnfoldPass(),
         # --------------------------------------------------
         # Convert RX and RY gates to RZ gates.
         # --------------------------------------------------
@@ -172,6 +177,7 @@ def build_cliffordrz_workflow(
         # --------------------------------------------------
         GroupSingleQuditGatePass(),
         zxzxz,
+        UnfoldPass(),
         clifford_replace(),
         UnfoldPass(),
         RoundToDiscreteZPass(synthesis_epsilon),

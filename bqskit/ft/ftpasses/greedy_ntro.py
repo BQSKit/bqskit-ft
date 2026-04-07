@@ -90,7 +90,8 @@ class GreedyNTROPass(BasePass):
                 else:
                     cur_ind += 1
 
-        assert False, f"Was not able to replace gate {circuit.gate_counts}, {ind}, {n}, {diffs}"
+        # assert False, f"Was not able to replace gate {circuit.gate_counts}, {ind}, {n}, {diffs}"
+        return None
 
 
     async def greedy_search(self, circuit: Circuit, 

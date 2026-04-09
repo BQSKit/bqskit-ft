@@ -27,19 +27,33 @@ class PKACtoGatesPass(BasePass):
         # This will unfold all the GidneyAdders
         circuit.unfold_all()
 
-        base_log_and_circ = Circuit(3)
-        base_log_and_circ.append_gate(HGate(), [2])
-        base_log_and_circ.append_gate(
-            MidCircuitMeasurement('a'), [2],
-        )
+        def base_log_and_circ(reg_name: str):
+            base_log_and_circ = Circuit(3)
+            base_log_and_circ.append_gate(HGate(), [2])
+            print("Adding Logical And and measuring to reg", reg_name)
+            base_log_and_circ.append_gate(
+                MidCircuitMeasurement(reg_name), [2],
+            )
+            return base_log_and_circ
+        
+        # Intiialize ancilla with measurements to keep track - Don't need for STEVE
+        # TODO: Set as flag
+
+        # for a in data.get('ancilla_qubits', []):
+        #     print("Initializing ancilla qubit", a, "with measurement to track in PKAC to gates pass")
+        #     circuit.append_gate(
+        #         MidCircuitMeasurement('log_and_' + str(a)), [a],
+        #     )
 
         # Now, we should replace all LogicalAndDgs with the measure and fixup
         pts = []
         new_circuit_gates = []
+        print('Running PKAC to gates pass, replacing LogicalAndDgs with H and control Z')
+        print('Number of LogicalAndDgs before replacement:', circuit.count(LogicalAndDgGate()))
         for cycle, op in circuit.operations_with_cycles():
             if isinstance(op.gate, LogicalAndDgGate):
                 # Replace with H, measurement and control Z
-                new_circ = base_log_and_circ.copy()
+                new_circ = base_log_and_circ('log_and_' + str(op.location[2]))
                 # Apply a CZ gate with 50% probability
                 if random.rand() < 0.5:
                     new_circ.append_gate(CZGate(), [0, 1])

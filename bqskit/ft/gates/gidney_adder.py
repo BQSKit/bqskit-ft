@@ -9,7 +9,6 @@ from bqskit.ir.gates.constant.cx import CNOTGate
 from bqskit.ir.gates.constant.h import HGate
 from bqskit.ir.gates.constant.t import TGate
 from bqskit.ir.gates.constant.x import XGate
-from bqskit.ir.gates.measure import MidCircuitMeasurement
 from bqskit.ir.gates.reset import Reset
 
 
@@ -74,12 +73,14 @@ class ConstantGidneyAdder(CircuitGate):
         # B 0 -> n - 1, Ancilla n -> 2n - 2
 
         # Convert constant to bits with LSB first
-        constant_bits = [(constant >> i) & 1 for i in range(n)]
+        # constant_bits = [(constant >> i) & 1 for i in range(n)]
 
         # Start circuit with first ind that is not 0
         start_ind = 0
-        while start_ind < n and constant_bits[start_ind] == 0:
+        constant_copy = constant
+        while start_ind < n and constant_copy % 2 == 0:
             start_ind += 1
+            constant_copy //= 2
 
         # Initialize all ancilla in T state
         for q  in range(n + start_ind + 1, 2 * n - 1):
@@ -101,14 +102,14 @@ class ConstantGidneyAdder(CircuitGate):
             if i == start_ind:
                 # For the first bit, no need to consider previous and
                 # Logical and just becomes a single CNOT, no T state needed
-                if constant_bits[i] == 1:
-                    c.append_gate(CNOTGate(), [B_i, anc_i])
+                # if constant_bits[i] == 1:
+                c.append_gate(CNOTGate(), [B_i, anc_i])
             else: # i > 0
-                if constant_bits[i] == 1:
-                    c.append_gate(XGate(), [anc_i_minus_1])
+                # if constant_bits[i] == 1:
+                c.append_gate(XGate(), [anc_i_minus_1])
                 c.append_gate(LogicalAndGate(), [anc_i_minus_1, B_i, anc_i])
-                if constant_bits[i] == 1:
-                    c.append_gate(XGate(), [anc_i_minus_1])
+                # if constant_bits[i] == 1:
+                c.append_gate(XGate(), [anc_i_minus_1])
                 c.append_gate(CNOTGate(), [anc_i_minus_1, anc_i])
 
             
@@ -129,22 +130,22 @@ class ConstantGidneyAdder(CircuitGate):
                 c.append_gate(CNOTGate(), [anc_i, B_i_plus_1])
 
             if i > start_ind:
-                if constant_bits[i] == 1:
-                    c.append_gate(XGate(), [anc_i_minus_1])
+                # if constant_bits[i] == 1:
+                c.append_gate(XGate(), [anc_i_minus_1])
                 c.append_gate(LogicalAndDgGate(), [anc_i_minus_1, B_i, anc_i])
-                if constant_bits[i] == 1:
-                    c.append_gate(XGate(), [anc_i_minus_1])
+                # if constant_bits[i] == 1:
+                c.append_gate(XGate(), [anc_i_minus_1])
             else: # i == start_ind
-                if constant_bits[i] == 1:
-                    c.append_gate(CNOTGate(), [B_i, anc_i])
-                if add_reset:
-                    c.append_gate(MidCircuitMeasurement('a'), [anc_i])
-                    c.append_gate(Reset(), [anc_i])
+                # if constant_bits[i] == 1:
+                c.append_gate(CNOTGate(), [B_i, anc_i])
+                # if add_reset:
+                #     c.append_gate(MidCircuitMeasurement('a' + str(anc_i)), [anc_i])
+                #     c.append_gate(Reset(), [anc_i])
 
         # Final layer of X gatess
         for i in range(n):
-            if constant_bits[i] == 1:
-                c.append_gate(XGate(), [B_i])
+            # if constant_bits[i] == 1:
+            c.append_gate(XGate(), [B_i])
 
         return c
 

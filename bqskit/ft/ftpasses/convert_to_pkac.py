@@ -13,7 +13,6 @@ from bqskit.ir.gates.constant.h import HGate
 from bqskit.ir.gates.constant.t import TGate
 from bqskit.ir.gates.constant.x import XGate
 from bqskit.ir.gates.parameterized.rz import RZGate
-from bqskit.ir.gates.measure import MidCircuitMeasurement
 from bqskit.ir.point import CircuitPoint
 
 
@@ -184,7 +183,7 @@ class ConvertToPKAC(BasePass):
             self.max_k = max_k_used
 
         # print("Before converting to PKAC: ", circuit.gate_counts, flush=True)
-        # print("Max k used: ", self.max_k, flush=True)
+        print("Max k used: ", self.max_k, flush=True)
 
         self.convert_k3_to_t(circuit)
             
@@ -196,7 +195,21 @@ class ConvertToPKAC(BasePass):
         
         # Now, convert all remaining FractionalRZGates to RZ gates
         ConvertToPKAC.convert_normal_rz(circuit, skip_max=self.max_k)
-        # print("After converting normal RZs: ", circuit.gate_counts, flush=True)
+        # Use largest k over all FractionalRZGates in the circuit
+        max_k_used = 0
+        for op in circuit.operations():
+            if isinstance(op.gate, FractionalRZGate):
+                k = op.gate.k
+                if k > max_k_used:
+                    max_k_used = k
+                if k == 4:
+                    has_k_4 = True
+
+        # Confirm we still need to do PKAC
+        print("Max k used after normal RZ conversion: ", max_k_used, flush=True)
+        if max_k_used <= 3:
+            print("No need to do PKAC conversion, max k is 3 or less.")
+            return
 
         n = circuit.num_qudits
 
@@ -244,12 +257,6 @@ class ConvertToPKAC(BasePass):
 
         # Remaining qubits are ancilla qubits
         ancilla_qubits = list(range(next_qubit, circuit_size))
-        # Initialize ancilla qubits with measurements
-        if self.add_measurements:
-            for q in ancilla_qubits:
-                new_circ.append_gate(
-                    MidCircuitMeasurement('a'), [q],
-                )
 
         for op in circuit.operations():
             if (isinstance(op.gate, FractionalRZGate) and op.gate.k == 4
@@ -299,3 +306,6 @@ class ConvertToPKAC(BasePass):
             else:
                 new_circ.append(op)
         circuit.become(new_circ)
+
+        if len(ancilla_qubits) > 0:
+            data['ancilla_qubits'] = ancilla_qubits

@@ -15,13 +15,52 @@ from bqskit.ir.gates.parameterized.rz import RZGate
 
 from bqskit.ir.opt.cost.functions import HilbertSchmidtCostGenerator
 from bqskit.qis.unitary.unitarymatrix import UnitaryMatrix
-from ntro.tcount import MatrixDistanceCostGenerator
 from bqskit.ir.opt.cost.generator import CostFunctionGenerator
+from bqskit.ir.opt.cost.differentiable import DifferentiableCostFunction
 
 from bqskit.runtime import get_runtime
 
 from bqskit.ft.cliffordrz.cliffordrzgates import clifford_rz_gates
 from bqskit.ft.gates.fractional_rz import FractionalRZGate
+
+class MatrixDistanceCostGenerator(CostFunctionGenerator):
+    def __init__(self, degree=2):
+        self.degree = degree
+
+    def gen_cost(self, circuit, target):
+        return MatrixDistanceCost(self.degree, circuit, target)
+
+class MatrixDistanceCost(DifferentiableCostFunction):
+    def __init__(self, degree, circuit, target):
+        self.degree = degree
+        self.circuit = circuit
+        self.target = target
+
+    def get_cost(self, params):
+        mat = self.circuit.get_unitary(params)
+        num = np.abs(np.trace(mat.conj().T @ self.target))
+        dem = mat.dim
+        frac = min(num / dem, 1)
+        dist = np.power(1 - (frac ** self.degree), 1.0 / self.degree)
+        dist = dist * (dist > 0.0)
+        return dist
+
+    def get_grad(self, params):
+        U = self.target
+        M, J = self.circuit.get_unitary_and_grad(params)
+
+        S = np.sum(np.multiply(U, np.conj(M)))
+        JU = np.array([np.multiply(U,np.conj(K)) for K in J])
+        JUS = np.sum(JU, axis=(1,2))
+        dem = M.dim
+        frac = min(np.abs(S) / dem, 1)
+
+        p1 = -(frac ** (self.degree - 1))
+        p2 = np.power(1 - (frac ** self.degree), (1.0 / self.degree) - 1.0)
+        p3 = (np.real(S)*np.real(JUS) + np.imag(S)*np.imag(JUS)) / (U.shape[0] * np.abs(S))
+
+        return p1 * p2 * p3
+
 
 
 class GreedyNTROPass(BasePass):

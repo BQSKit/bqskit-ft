@@ -14,8 +14,8 @@ from bqskit.ir.gates.constant.tdg import TdgGate
 from bqskit.ir.gates.parameterized.rz import RZGate
 
 from bqskit.qis.unitary.unitarymatrix import UnitaryMatrix
-from ntro.tcount import MatrixDistanceCostGenerator
 from bqskit.ir.opt.cost.generator import CostFunctionGenerator
+from bqskit.ft.ftpasses.greedy_ntro import MatrixDistanceCostGenerator
 
 from bqskit.runtime import get_runtime
 

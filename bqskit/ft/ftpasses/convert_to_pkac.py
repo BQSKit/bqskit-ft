@@ -183,7 +183,7 @@ class ConvertToPKAC(BasePass):
             self.max_k = max_k_used
 
         # print("Before converting to PKAC: ", circuit.gate_counts, flush=True)
-        print("Max k used: ", self.max_k, flush=True)
+        # print("Max k used: ", self.max_k, flush=True)
 
         self.convert_k3_to_t(circuit)
             
@@ -206,9 +206,9 @@ class ConvertToPKAC(BasePass):
                     has_k_4 = True
 
         # Confirm we still need to do PKAC
-        print("Max k used after normal RZ conversion: ", max_k_used, flush=True)
+        # print("Max k used after normal RZ conversion: ", max_k_used, flush=True)
         if max_k_used <= 3:
-            print("No need to do PKAC conversion, max k is 3 or less.")
+            # print("No need to do PKAC conversion, max k is 3 or less.")
             return
 
         n = circuit.num_qudits

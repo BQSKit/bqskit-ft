@@ -23,6 +23,7 @@ class CliffordTModel(FaultTolerantModel):
         num_qudits: int,
         clifford_gates: Sequence[Gate] = clifford_gates,
         non_clifford_gates: Sequence[Gate] = [TGate(), TdgGate(), RZGate()],
+        err_per_gate: float = 1e-10,
         radixes: Sequence[int] = [],
     ) -> None:
         """
@@ -58,25 +59,29 @@ class CliffordTModel(FaultTolerantModel):
         for opt_level in [1, 2, 3, 4]:
             register_workflow(
                 self,
-                build_circuit_workflow(opt_level),
+                build_circuit_workflow(opt_level,
+                                       synthesis_epsilon=err_per_gate),
                 opt_level,
                 'circuit',
             )
             register_workflow(
                 self,
-                build_unitary_workflow(opt_level),
+                build_unitary_workflow(opt_level,
+                                       synthesis_epsilon=err_per_gate),
                 opt_level,
                 'unitary',
             )
             register_workflow(
                 self,
-                build_statemap_workflow(opt_level),
+                build_statemap_workflow(opt_level,
+                                        synthesis_epsilon=err_per_gate),
                 opt_level,
                 'statemap',
             )
             register_workflow(
                 self,
-                build_stateprep_workflow(opt_level),
+                build_stateprep_workflow(opt_level,
+                                         synthesis_epsilon=err_per_gate),
                 opt_level,
                 'stateprep',
             )

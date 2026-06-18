@@ -77,18 +77,14 @@ def small_circuit() -> Circuit:
     return circ
 
 if __name__ == '__main__':
-    # input_file = argv[1]
-    # output_file = argv[2]
-    # prec = int(argv[2]) # 3 = 10-3 error across circuit
+    input_file = argv[1]
+    prec = int(argv[2]) # 3 = 10-3 error across circuit
     # Set to -1 for full width pauli products, otherwise pass in a max width
     # and Clifford + T gates
     # max_width = int(argv[3]) if len(argv) > 3 else -1 
 
     max_width = 2
-    prec = 3
     error = 10 ** (-prec)
-
-    input_file = "../H_2.qasm"
 
     # Load the circ
     circ = Circuit.from_file(input_file)

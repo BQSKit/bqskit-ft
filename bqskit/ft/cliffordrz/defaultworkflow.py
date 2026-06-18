@@ -95,7 +95,7 @@ def clifford_replace() -> BasePass:
             ReplacementRule(sdg_repl_rule, SdgGate()),  # type: ignore
             ReplacementRule(t_repl_rule, TGate()),  # type: ignore
             ReplacementRule(tdg_repl_rule, TdgGate()),  # type: ignore
-            ReplacementRule(i_repl_rule, None),  # type: ignore
+            ReplacementRule(i_repl_rule, IdentityGate()),  # type: ignore
         ],
         collection_filter=single_qudit_filter,
     )

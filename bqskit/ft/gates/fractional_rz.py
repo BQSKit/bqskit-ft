@@ -12,7 +12,6 @@ from bqskit.ir.gates.qubitgate import QubitGate
 from bqskit.qis.unitary.unitary import RealVector
 from bqskit.qis.unitary.unitarymatrix import UnitaryMatrix
 
-
 class FractionalRZGate(ConstantGate, QubitGate):
     """
     A gate representing an arbitrary rotation around the Z axis.

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import log10
+from math import ceil, log10
 
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.compile import build_multi_qudit_retarget_workflow
@@ -87,7 +87,7 @@ def clifford_replace() -> BasePass:
             ReplacementRule(sdg_repl_rule, SdgGate()),  # type: ignore
             ReplacementRule(t_repl_rule, TGate()),  # type: ignore
             ReplacementRule(tdg_repl_rule, TdgGate()),  # type: ignore
-            ReplacementRule(i_repl_rule, IdentityGate()),  # type: ignore
+            ReplacementRule(i_repl_rule, None),  # type: ignore
         ],
         collection_filter=single_qudit_filter,
     )
@@ -105,29 +105,6 @@ def build_cliffordt_workflow(
 ) -> list[BasePass]:
     """Build a workflow for Clifford+T compilation."""
     passes = [SetRandomSeedPass(seed)] if seed is not None else []
-    if circuit_target:
-        passes += [UnfoldPass()]
-        passes += build_multi_qudit_retarget_workflow(
-            optimization_level=optimization_level,
-            synthesis_epsilon=synthesis_epsilon,
-            max_synthesis_size=max_synthesis_size,
-            error_threshold=error_threshold,
-            error_sim_size=error_sim_size,
-        )
-        passes += [UnfoldPass()]
-        passes += [QuickPartitioner(block_size=max_synthesis_size)]
-
-    if not circuit_target:
-        passes += build_search_synthesis_workflow(
-            optimization_level, synthesis_epsilon,
-        )
-
-    zxzxz = ForEachBlockPass(
-        [ZXZXZDecomposition()], collection_filter=single_qudit_u2_or_u3,
-    )
-    xytoz = ForEachBlockPass(
-        [XYtoZRotation()], collection_filter=single_qudit_rx_or_ry,
-    )
 
     passes += [
         # --------------------------------------------------
@@ -139,7 +116,7 @@ def build_cliffordt_workflow(
         # --------------------------------------------------
         # Convert RX and RY gates to RZ gates.
         # --------------------------------------------------
-        xytoz,
+        # xytoz,
         # --------------------------------------------------
         # Replace Z, S, Sdg, T, and Tdg gates when possible.
         # --------------------------------------------------
@@ -147,23 +124,23 @@ def build_cliffordt_workflow(
         # --------------------------------------------------
         # Do quick scan to remove gates.
         # --------------------------------------------------
-        QuickPartitioner(2),
-        ForEachBlockPass([ScanningGateRemovalPass()]),
-        UnfoldPass(),
+        # QuickPartitioner(2),
+        # ForEachBlockPass([ScanningGateRemovalPass()]),
+        # UnfoldPass(),
         # --------------------------------------------------
         # Do quick scan to remove gates.
         # --------------------------------------------------
         # GroupSingleQuditGatePass(),
-        zxzxz,
-        clifford_replace(),
-        UnfoldPass(),
-        RoundToDiscreteZPass(synthesis_epsilon),
+        # # zxzxz,
+        # clifford_replace(),
+        # UnfoldPass(),
+        # RoundToDiscreteZPass(synthesis_epsilon),
         UnfoldPass(),
     ]
 
     # Decompose RZ gates into Clifford+T
     if decompose_rz:
-        precision = int(log10(1 / synthesis_epsilon)) + 2
+        precision = int(ceil(log10(1 / synthesis_epsilon)))
         passes += rz_decomposition_passes(precision)
 
     # Finalizing

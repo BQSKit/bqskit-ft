@@ -63,9 +63,10 @@ class DPFPass(BasePass):
         self,
         success_threshold: float = 1e-8,
         cost: CostFunctionGenerator = MatrixDistanceCostGenerator(),
+        k: int = 3,
     ) -> None:
         # TODO: Make k a parameter to use PKAC
-        self.k = 3
+        self.k = k
         self.success_threshold = success_threshold
         self.base_period = 2 * np.pi / (2 ** self.k)
         self.cost = cost

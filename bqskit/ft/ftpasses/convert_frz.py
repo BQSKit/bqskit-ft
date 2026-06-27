@@ -23,7 +23,8 @@ class ConvertFractionalRZPass(BasePass):
     right now.
     '''
 
-    def __init__(self) -> None:
+    def __init__(self,
+                 max_k: int = 3) -> None:
         '''
 
         Args:
@@ -34,7 +35,7 @@ class ConvertFractionalRZPass(BasePass):
             Resets to the circuit. This is useful for mappers, but not for
             unitary-based subroutines.
         '''
-        self.max_k = 3 # TODO: Extend to convert higher k to PK circuits
+        self.max_k = max_k
 
     def convert_k3_to_t(self, circuit: Circuit) -> None:
         '''

@@ -24,6 +24,8 @@ class CliffordTModel(FaultTolerantModel):
         clifford_gates: Sequence[Gate] = clifford_gates,
         non_clifford_gates: Sequence[Gate] = [TGate(), TdgGate(), RZGate()],
         radixes: Sequence[int] = [],
+        skip_synthesis: bool = False,
+        skip_zxzxz: bool = False,
     ) -> None:
         """
         Construct a FaultTolerantModel of an error corrected machine.
@@ -46,8 +48,15 @@ class CliffordTModel(FaultTolerantModel):
                 qudits are assumed to be qubits. Currently only qubits
                 are supported. (Default: [])
 
-        TODO:
-            - Add support for radices >2
+            skip_synthesis (bool): If True, the synthesis passes will to re-target
+                the initial gate set will be skipped. You can use this if all 
+                multi-qubit gates are Clifford. DOES NOT APPLY to non-circuit
+                workflows.
+
+            skip_zxzxz (bool): If True, the ZXZXZ decomposition pass will be skipped.
+                You can use this if all single-qubit rotation gates are Rz gates 
+                and all multi-qubit gates are Clifford. Note that this will also 
+                skip synthesis. DOES NOT APPLY to non-circuit workflows.
         """
         super().__init__(
             num_qudits,
@@ -58,7 +67,9 @@ class CliffordTModel(FaultTolerantModel):
         for opt_level in [1, 2, 3, 4]:
             register_workflow(
                 self,
-                build_circuit_workflow(opt_level),
+                build_circuit_workflow(opt_level, 
+                                       skip_synthesis=skip_synthesis, 
+                                       skip_zxzxz=skip_zxzxz),
                 opt_level,
                 'circuit',
             )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from math import log10
 
 from bqskit.compiler.basepass import BasePass
-from bqskit.compiler.compile import build_multi_qudit_retarget_workflow
+from bqskit.compiler.compile import build_multi_qudit_retarget_workflow, build_partitioning_workflow
 from bqskit.compiler.workflow import Workflow
 from bqskit.ft.ftpasses.gridsynth import GridSynthPass
 from bqskit.ft.ftpasses.rounding import RoundToDiscreteZPass
@@ -66,15 +66,6 @@ def single_qudit_rx_or_ry(op: Operation) -> bool:
 def rz_gate_filter(op: Operation) -> bool:
     return isinstance(op.gate, RZGate)
 
-
-def rz_decomposition_passes(precision: int) -> list[BasePass]:
-    return [
-        IsolateRZGatePass(),
-        ForEachBlockPass([GridSynthPass(precision=precision)]),
-        UnfoldPass(),
-    ]
-
-
 def clifford_replace() -> BasePass:
     return ForEachBlockPass(
         [
@@ -102,25 +93,31 @@ def build_cliffordt_workflow(
     circuit_target: bool = False,
     decompose_rz: bool = True,
     seed: int | None = None,
+    skip_synthesis: bool = False,
+    skip_zxzxz: bool = False,
 ) -> list[BasePass]:
     """Build a workflow for Clifford+T compilation."""
     passes = [SetRandomSeedPass(seed)] if seed is not None else []
     if circuit_target:
         passes += [UnfoldPass()]
-        passes += build_multi_qudit_retarget_workflow(
-            optimization_level=optimization_level,
-            synthesis_epsilon=synthesis_epsilon,
-            max_synthesis_size=max_synthesis_size,
-            error_threshold=error_threshold,
-            error_sim_size=error_sim_size,
-        )
-        passes += [UnfoldPass()]
-        passes += [QuickPartitioner(block_size=max_synthesis_size)]
+        if not skip_synthesis:
+            passes += build_multi_qudit_retarget_workflow(
+                optimization_level=optimization_level,
+                synthesis_epsilon=synthesis_epsilon,
+                max_synthesis_size=max_synthesis_size,
+                error_threshold=error_threshold,
+                error_sim_size=error_sim_size,
+            )
 
     if not circuit_target:
+        assert skip_synthesis is False, "Cannot skip synthesis for non-circuit targets."
         passes += build_search_synthesis_workflow(
             optimization_level, synthesis_epsilon,
         )
+
+    # Build Core Workflow for Clifford + Single Qubit Rotations -> Clifford + T
+
+    core_workflow = []
 
     zxzxz = ForEachBlockPass(
         [ZXZXZDecomposition()], collection_filter=single_qudit_u2_or_u3,
@@ -129,7 +126,7 @@ def build_cliffordt_workflow(
         [XYtoZRotation()], collection_filter=single_qudit_rx_or_ry,
     )
 
-    passes += [
+    core_workflow += [
         # --------------------------------------------------
         # Replace single qudit Cliffords where possible.
         # --------------------------------------------------
@@ -150,23 +147,33 @@ def build_cliffordt_workflow(
         QuickPartitioner(2),
         ForEachBlockPass([ScanningGateRemovalPass()]),
         UnfoldPass(),
-        # --------------------------------------------------
-        # Do quick scan to remove gates.
-        # --------------------------------------------------
-        # GroupSingleQuditGatePass(),
-        zxzxz,
-        clifford_replace(),
-        UnfoldPass(),
-        RoundToDiscreteZPass(synthesis_epsilon),
-        UnfoldPass(),
     ]
+
+    # --------------------------------------------------
+    # Convert to Clifford + Rz gate set.
+    # --------------------------------------------------
+    if not skip_zxzxz: 
+        core_workflow += [
+            GroupSingleQuditGatePass(),
+            zxzxz,
+            clifford_replace(),
+            UnfoldPass(),
+            RoundToDiscreteZPass(synthesis_epsilon),
+            UnfoldPass(),
+        ]
 
     # Decompose RZ gates into Clifford+T
     if decompose_rz:
-        precision = int(log10(1 / synthesis_epsilon)) + 2
-        passes += rz_decomposition_passes(precision)
+        core_workflow += [GridSynthPass(synthesis_epsilon)]
 
     # Finalizing
+    passes = build_partitioning_workflow(
+        core_workflow,
+        block_size=max_synthesis_size,
+        error_sim_size=error_sim_size,
+        replace_filter_method='always'
+    )
+
     passes += [LogErrorPass()]
     return passes  # type: ignore
 
@@ -223,8 +230,7 @@ def build_search_synthesis_workflow(
     passes = [synthesis, foreach, UnfoldPass()]
 
     if decompose_rz:
-        precision = int(log10(1 / synthesis_epsilon)) + 2
-        passes += rz_decomposition_passes(precision)
+        passes += [GridSynthPass(synthesis_epsilon)]
 
     return passes
 
@@ -237,6 +243,8 @@ def build_circuit_workflow(
     error_sim_size: int = 8,
     decompose_rz: bool = True,
     seed: int | None = None,
+    skip_synthesis: bool = False,
+    skip_zxzxz: bool = False,
 ) -> Workflow:
     """Build standard workflow for circuit compilation."""
     workflow = build_cliffordt_workflow(
@@ -248,11 +256,12 @@ def build_circuit_workflow(
         circuit_target=True,
         decompose_rz=decompose_rz,
         seed=seed,
+        skip_synthesis=skip_synthesis,
+        skip_zxzxz=skip_zxzxz,
     )
     return Workflow(
         workflow, name='Off-the-Shelf Clifford+T Circuit Compilation',
     )
-
 
 def build_unitary_workflow(
     optimization_level: int = 1,

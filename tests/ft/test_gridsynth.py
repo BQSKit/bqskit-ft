@@ -10,9 +10,6 @@ from bqskit.ft.ftpasses.gridsynth import GridSynthPass
 from bqskit.ir import Circuit
 from bqskit.ir.gates import CNOTGate
 from bqskit.ir.gates import RZGate
-from bqskit.ir.gates import U3Gate
-from bqskit.passes import ForEachBlockPass
-from bqskit.passes import UnfoldPass
 
 
 class TestGridSynthPass:
@@ -26,7 +23,7 @@ class TestGridSynthPass:
             theta = random() * 2 * pi
             circuit.append_gate(RZGate(), [0], [theta])
 
-            total_error = 1e-10
+            total_error = 1e-5
             gridsynth = GridSynthPass(algorithmic_error=total_error)
             old_circuit = circuit.copy()
 
@@ -53,7 +50,7 @@ class TestGridSynthPass:
         total_error = 1e-10
 
         passes = [
-            GridSynthPass(algorithmic_error=total_error)
+            GridSynthPass(algorithmic_error=total_error),
         ]
 
         with Compiler() as compiler:

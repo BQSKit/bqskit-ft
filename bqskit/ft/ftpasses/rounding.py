@@ -19,7 +19,7 @@ from bqskit.ir.operation import Operation
 
 class RoundToDiscreteZPass(BasePass):
 
-    def __init__(self, synthesis_epsilon: float = 1e-8) -> None:
+    def __init__(self, synthesis_epsilon: float = 1e-10) -> None:
         self.synthesis_epsilon = synthesis_epsilon
 
     def normalize_angle(self, angle: float) -> float:
@@ -60,6 +60,11 @@ class RoundToDiscreteZPass(BasePass):
         return CircuitGate(circuit)
 
     async def run(self, circuit: Circuit, data: PassData) -> None:
+        # Try to get error from data
+        for key in data.keys():
+            if 'algorithmic_error' in key:
+                self.synthesis_epsilon = data[key]
+                break
 
         for cycle, op in circuit.operations_with_cycles(reverse=True):
             if not isinstance(op.gate, RZGate):

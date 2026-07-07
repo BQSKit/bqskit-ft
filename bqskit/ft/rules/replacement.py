@@ -14,7 +14,7 @@ from bqskit.qis.unitary import UnitaryMatrix
 
 def construct_unitary_match_rule(
     unitary: UnitaryMatrix,
-    threshold: float = 1e-8,
+    threshold: float = 1e-10,
 ) -> Callable[[Operation], bool]:
     return partial(
         unitary_match_function,

@@ -1,8 +1,7 @@
 """Apply the gridsynth algorithm to an RZ gate."""
 from __future__ import annotations
 
-import mpmath
-from pygridsynth.gridsynth import gridsynth_gates
+import rsgridsynth
 
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.passdata import PassData
@@ -15,18 +14,23 @@ from bqskit.ir.gates.constant.x import XGate
 from bqskit.ir.gates.parameterized.rz import RZGate
 from bqskit.ir.operation import Operation
 from bqskit.runtime import get_runtime
-mpmath.mp.dps = 128
 
 
 class GridSynthPass(BasePass):
     async def run_rz(self, theta: float, precision: float) -> Circuit:
         """Run the gridsynth algorithm on a single RZ gate."""
-        theta = mpmath.mpmathify(theta)
-        precision = mpmath.mpmathify(precision)
-        gate_str = gridsynth_gates(theta, precision)
+        result = rsgridsynth.synth(
+            f"{theta}", f"{precision}", compute_error=True,
+        )
+        if result.error > precision:
+            raise ValueError(
+                f'Gridsynth failed to synthesize RZ({theta}) '
+                f'with precision {precision}. '
+                f'Got error {result.error}.',
+            )
         new_circuit = Circuit(1)
         # Gates are in matrix order, so we need to append them in reverse
-        for gate in reversed(gate_str):
+        for gate in reversed(result.gates):
             if gate == 'H':
                 new_circuit.append_gate(HGate(), [0])
             elif gate == 'X':

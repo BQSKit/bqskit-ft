@@ -118,7 +118,7 @@ def build_error_aware_partitioning_workflow(
     # Partition Circuit
     pass_list = [QuickPartitioner(block_size), ExtendBlockSizePass()]
 
-    # Assign th error to each block
+    # Assign the error to each block
     pass_list += [AssignErrors()]
 
     # Now generate the ForEachBlockPass for the core workflow

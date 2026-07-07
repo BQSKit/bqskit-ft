@@ -15,7 +15,7 @@ dependencies = [
     "bqskit",
     "numpy",
     "scipy",
-    "pygridsynth"
+    "rsgridsynth @ git+https://github.com/jkalloor3/rsgridsynth.git@main"
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",

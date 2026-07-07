@@ -10,18 +10,23 @@ A BQSKit extension package for compiling quantum circuits to fault-tolerant gate
 BQSKit-FT extends the Berkeley Quantum Synthesis Toolkit ([BQSKit](https://github.com/BQSKit/bqskit)) with specialized compilation workflows and machine models for fault-tolerant quantum computing. This package provides tools for compiling arbitrary quantum circuits into fault-tolerant gate sets such as Clifford+T and Clifford+RZ.
 
 ## Installation
-BQSKit-FT can be installed from PyPI using
-```bash
-pip install bqskit-ft
-```
 
-### Install from github
-For the most up to date version install from github using:
+> **Note:** BQSKit-FT depends on a Rust extension (`rsgridsynth`) that is
+> currently built from source at install time. You must have the Rust
+> toolchain installed first:
+>
+> ```bash
+> curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+> ```
+
+### Install from GitHub (recommended)
+
+Currently BQSKit-FT must be installed from source:
+
 ```bash
 git clone https://github.com/BQSKit/bqskit-ft.git
 cd bqskit-ft
 pip install -e .
-```
 
 ## Quick Start
 

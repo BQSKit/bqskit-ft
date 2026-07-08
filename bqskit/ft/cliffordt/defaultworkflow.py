@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from math import ceil, log10
+
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.compile import build_multi_qudit_retarget_workflow
 from bqskit.compiler.passdata import PassData
 from bqskit.compiler.workflow import Workflow
+from bqskit.ft.ftpasses.dpf import DPFPass
+from bqskit.ft.ftpasses.convert_frz import ConvertFractionalRZPass
 from bqskit.ft.ftpasses.gridsynth import GridSynthPass
 from bqskit.ft.ftpasses.rounding import RoundToDiscreteZPass
 from bqskit.ft.rules.replacement import construct_unitary_match_rule
@@ -80,7 +84,7 @@ def clifford_replace() -> BasePass:
             ReplacementRule(sdg_repl_rule, SdgGate()),  # type: ignore
             ReplacementRule(t_repl_rule, TGate()),  # type: ignore
             ReplacementRule(tdg_repl_rule, TdgGate()),  # type: ignore
-            ReplacementRule(i_repl_rule, IdentityGate()),  # type: ignore
+            ReplacementRule(i_repl_rule, None),  # type: ignore
         ],
         collection_filter=single_qudit_filter,
     )
@@ -205,6 +209,15 @@ def build_cliffordt_workflow(
             RoundToDiscreteZPass(),
             UnfoldPass(),
         ]
+
+    # --------------------------------------------------
+    # Now, use Dyadic Phase Fixing to remove more Rzs
+    # --------------------------------------------------
+    core_workflow += [
+        DPFPass(),
+        ConvertFractionalRZPass(),
+    ]
+
     # Put into partitioned workflow
     passes += build_error_aware_partitioning_workflow(
         core_workflow,

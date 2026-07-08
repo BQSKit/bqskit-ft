@@ -24,6 +24,7 @@ class CliffordTModel(FaultTolerantModel):
         algorithmic_error: float = 1e-4,
         clifford_gates: Sequence[Gate] = clifford_gates,
         non_clifford_gates: Sequence[Gate] = [TGate(), TdgGate(), RZGate()],
+        err_per_gate: float = 1e-10,
         radixes: Sequence[int] = [],
         skip_synthesis: bool = False,
         skip_zxzxz: bool = False,

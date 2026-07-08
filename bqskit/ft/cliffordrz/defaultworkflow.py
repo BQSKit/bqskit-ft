@@ -11,6 +11,7 @@ from bqskit.ft.rules.isolate_rz import IsolateRZGatePass
 from bqskit.ft.rules.replacement import construct_unitary_match_rule
 from bqskit.ft.rules.replacement import ReplacementRule
 from bqskit.ft.rules.xytoz import XYtoZRotation
+from bqskit.ir.circuit import Circuit
 from bqskit.ir.gates.constant.h import HGate
 from bqskit.ir.gates.constant.identity import IdentityGate
 from bqskit.ir.gates.constant.s import SGate
@@ -24,12 +25,14 @@ from bqskit.ir.gates.constant.z import ZGate
 from bqskit.ir.gates.parameterized.rx import RXGate
 from bqskit.ir.gates.parameterized.ry import RYGate
 from bqskit.ir.gates.parameterized.rz import RZGate
+from bqskit.ir.gates.parameterized.u1 import U1Gate
 from bqskit.ir.operation import Operation
 from bqskit.passes.control.foreach import ForEachBlockPass
 from bqskit.passes.partitioning.quick import QuickPartitioner
 from bqskit.passes.partitioning.single import GroupSingleQuditGatePass
 from bqskit.passes.processing.scan import ScanningGateRemovalPass
 from bqskit.passes.rules.zxzxz import ZXZXZDecomposition
+from bqskit.passes.rules.u12rz import U1ToRZPass
 from bqskit.passes.synthesis.qsearch import QSearchSynthesisPass
 from bqskit.passes.util.log import LogErrorPass
 from bqskit.passes.util.random import SetRandomSeedPass
@@ -52,6 +55,9 @@ tdg_repl_rule = construct_unitary_match_rule(TdgGate().get_unitary())
 def single_qudit_filter(op: Operation) -> bool:
     return op.num_qudits == 1 and op.num_params > 0
 
+def param_filter(new: Circuit, old: Operation) -> bool:
+    """Always replace."""
+    return new.num_params <= old.num_params
 
 def single_qudit_u2_or_u3(op: Operation) -> bool:
     return op.num_qudits == 1 and op.num_params > 1
@@ -62,6 +68,8 @@ def single_qudit_rx_or_ry(op: Operation) -> bool:
     is_rx = isinstance(op.gate, RXGate)
     return op.num_qudits == 1 and (is_ry or is_rx)
 
+def single_qudit_u1(op: Operation) -> bool:
+    return op.num_qudits == 1 and isinstance(op.gate, U1Gate)
 
 def rz_gate_filter(op: Operation) -> bool:
     return isinstance(op.gate, RZGate)
@@ -107,20 +115,8 @@ def build_cliffordrz_workflow(
     passes = [SetRandomSeedPass(seed)] if seed is not None else []
     if circuit_target:
         passes += [UnfoldPass()]
-        passes += build_multi_qudit_retarget_workflow(
-            optimization_level=optimization_level,
-            synthesis_epsilon=synthesis_epsilon,
-            max_synthesis_size=max_synthesis_size,
-            error_threshold=error_threshold,
-            error_sim_size=error_sim_size,
-        )
         passes += [UnfoldPass()]
-        passes += [QuickPartitioner(block_size=max_synthesis_size)]
 
-    if not circuit_target:
-        passes += build_search_synthesis_workflow(
-            optimization_level, synthesis_epsilon,
-        )
 
     zxzxz = ForEachBlockPass(
         [ZXZXZDecomposition()], collection_filter=single_qudit_u2_or_u3,
@@ -129,7 +125,12 @@ def build_cliffordrz_workflow(
         [XYtoZRotation()], collection_filter=single_qudit_rx_or_ry,
     )
 
+    u1torz = ForEachBlockPass(
+        [U1ToRZPass()], collection_filter=single_qudit_u1,
+    )
+
     passes += [
+        u1torz,
         # --------------------------------------------------
         # Replace single qudit Cliffords where possible.
         # --------------------------------------------------
@@ -143,18 +144,17 @@ def build_cliffordrz_workflow(
         # --------------------------------------------------
         # Replace Z, S, Sdg, T, and Tdg gates when possible.
         # --------------------------------------------------
+        UnfoldPass(),
         RoundToDiscreteZPass(synthesis_epsilon),
         # --------------------------------------------------
         # Do quick scan to remove gates.
         # --------------------------------------------------
-        QuickPartitioner(2),
-        ForEachBlockPass([ScanningGateRemovalPass()]),
-        UnfoldPass(),
         # --------------------------------------------------
         # Do quick scan to remove gates.
         # --------------------------------------------------
-        # GroupSingleQuditGatePass(),
+        GroupSingleQuditGatePass(),
         zxzxz,
+        UnfoldPass(),
         clifford_replace(),
         UnfoldPass(),
         RoundToDiscreteZPass(synthesis_epsilon),

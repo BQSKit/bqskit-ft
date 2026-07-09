@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import numpy as np
-from pygridsynth.gridsynth import gridsynth_gates
 
 from bqskit.compiler.basepass import BasePass
 from bqskit.compiler.passdata import PassData

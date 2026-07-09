@@ -57,6 +57,8 @@ class ReplacementRule(BasePass):
                 replacement, [_ for _ in range(num_qudits)],
             )
             self.replacement.unfold_all()
+        elif replacement is None:
+            self.replacement = Circuit(1)
         else:
             self.replacement = replacement
 

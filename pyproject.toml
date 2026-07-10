@@ -9,13 +9,13 @@ description = "BQSKit extension for compiling to Fault-Tolerant gate sets."
 readme = "README.md"
 license = {text = "BSD-3-Clause"}
 authors = [{name = "Mathias Weiden", email = "mtweiden@berkeley.edu"}]
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 keywords = ["quantum computing", "compilation", "fault-tolerant", "clifford+t"]
 dependencies = [
     "bqskit",
     "numpy",
     "scipy",
-    "rsgridsynth @ git+https://github.com/jkalloor3/rsgridsynth.git@main"
+    "rsgridsynth @ git+https://github.com/jkalloor3/rsgridsynth.git@v1.0.0"
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",

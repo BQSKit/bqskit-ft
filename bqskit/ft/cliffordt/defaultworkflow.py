@@ -189,11 +189,11 @@ def build_cliffordt_workflow(
         # --------------------------------------------------
         # Convert RX and RY gates to RZ gates.
         # --------------------------------------------------
+        UnfoldPass(),
         xytoz,
         # --------------------------------------------------
         # Replace Z, S, Sdg, T, and Tdg gates when possible.
         # --------------------------------------------------
-        UnfoldPass(),
         RoundToDiscreteZPass(),
     ]
 

@@ -28,6 +28,7 @@ class CliffordTModel(FaultTolerantModel):
         radixes: Sequence[int] = [],
         skip_synthesis: bool = False,
         skip_zxzxz: bool = False,
+        use_ccz: bool = False,
     ) -> None:
         """
         Construct a FaultTolerantModel of an error corrected machine.
@@ -64,6 +65,10 @@ class CliffordTModel(FaultTolerantModel):
                 Rz gatesand all multi-qubit gates are Clifford. Note that this
                 will also skip synthesis. DOES NOT APPLY to non-circuit
                 workflows.
+
+            use_ccz (bool): If True, the CCZ/Toffoli gates will be used as a native
+                gate. This is useful for some codes that can implement CCZ
+                natively. (Default: False)
         """
         super().__init__(
             num_qudits,
@@ -79,6 +84,7 @@ class CliffordTModel(FaultTolerantModel):
                     algorithmic_error=algorithmic_error,
                     skip_synthesis=skip_synthesis,
                     skip_zxzxz=skip_zxzxz,
+                    use_ccz=use_ccz,
                 ),
                 opt_level,
                 'circuit',

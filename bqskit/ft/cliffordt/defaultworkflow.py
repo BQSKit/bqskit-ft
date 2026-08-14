@@ -148,6 +148,7 @@ def build_cliffordt_workflow(
     seed: int | None = None,
     skip_synthesis: bool = False,
     skip_zxzxz: bool = False,
+    use_ccz: bool = False, # For now just skip synthesis
     synthesis_epsilon: float = 1e-8,
 ) -> list[BasePass]:
     """Build a workflow for Clifford+T compilation."""
@@ -155,7 +156,7 @@ def build_cliffordt_workflow(
     passes += [UpdateDataPass('algorithmic_error', algorithmic_error)]
     if circuit_target:
         passes += [UnfoldPass()]
-        if not skip_synthesis:
+        if not skip_synthesis and not use_ccz:
             passes += build_multi_qudit_retarget_workflow(
                 optimization_level=optimization_level,
                 synthesis_epsilon=synthesis_epsilon,
@@ -301,6 +302,7 @@ def build_circuit_workflow(
     skip_synthesis: bool = False,
     skip_zxzxz: bool = False,
     synthesis_epsilon: float = 1e-8,
+    use_ccz: bool = False,
 ) -> Workflow:
     """Build standard workflow for circuit compilation."""
     workflow = build_cliffordt_workflow(
@@ -315,6 +317,7 @@ def build_circuit_workflow(
         skip_synthesis=skip_synthesis,
         skip_zxzxz=skip_zxzxz,
         synthesis_epsilon=synthesis_epsilon,
+        use_ccz=use_ccz,
     )
     return Workflow(
         workflow, name='Off-the-Shelf Clifford+T Circuit Compilation',
